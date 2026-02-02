@@ -19,7 +19,7 @@ const TRANSLATIONS = {
         btnDelete: "Delete",
         btnEdit: "Edit Task",
         noDesc: "No description provided.",
-        noTasks: "No tasks for today",
+        noTasks: "No tasks planned",
         alertTitleTime: "Please enter title and time!",
         alertDay: "Please select a day!",
         confirmDelete: "Delete this task?",
@@ -71,7 +71,7 @@ const TRANSLATIONS = {
         btnDelete: "Удалить",
         btnEdit: "Редактировать",
         noDesc: "Нет описания",
-        noTasks: "Нет задач на сегодня",
+        noTasks: "Нет задач",
         alertTitleTime: "Заполните название и время!",
         alertDay: "Выберите день недели!",
         confirmDelete: "Удалить эту задачу?",
@@ -83,11 +83,12 @@ const TRANSLATIONS = {
     }
 };
 
-const STORAGE_KEY = 'weekly_planner_data';
+const STORAGE_KEY = 'weekly_planner_data_v2';
+const LIMIT_START_DATE = new Date('2026-02-02T00:00:00').getTime();
 
 let state = {
-    currentWeekStart: null,
-    lang: 'en',
+    viewWeekStart: null,
+    lang: 'ru',
     tasks: []
 };
 
@@ -95,11 +96,11 @@ let currentDayIndex = new Date().getDay() === 0 ? 6 : new Date().getDay() - 1;
 let editingTaskId = null;
 let viewingTaskId = null;
 
-// DOM
+// DOM Elements
 const scheduleTrack = document.getElementById('schedule-track');
 const dayNavTrack = document.getElementById('day-nav-track');
 const modalForm = document.getElementById('modal-overlay');
-const fabBtn = document.getElementById('fab-add');
+const fabBtn = document.getElementById('fab-add'); // Now inside sidebar
 const closeFormBtn = document.getElementById('modal-close');
 const taskForm = document.getElementById('task-form');
 const dayInput = document.getElementById('t-day-index');
@@ -119,6 +120,9 @@ const vTitle = document.getElementById('v-title');
 const vTimeDate = document.getElementById('v-time-date');
 const vDesc = document.getElementById('v-desc');
 
+const btnPrevWeek = document.getElementById('prev-week');
+const btnNextWeek = document.getElementById('next-week');
+
 // ==========================================
 // INIT
 // ==========================================
@@ -127,23 +131,30 @@ document.addEventListener('DOMContentLoaded', initApp);
 
 function initApp() {
     loadData();
+
+    // Check limits
+    if (!state.viewWeekStart) {
+        let nowMonday = getMonday(new Date()).getTime();
+        state.viewWeekStart = nowMonday < LIMIT_START_DATE ? LIMIT_START_DATE : nowMonday;
+    }
+
+    checkAndGenerateCurrentWeek();
     updateLangTabsUI();
     applyLanguage();
-    checkWeekUpdate();
     renderHeader();
     renderNav();
     renderSchedule();
     updateSliderPosition();
     initSwipe();
 
-    attachTextAnalyzer(inputTitle);
-    attachTextAnalyzer(inputDesc);
+    // Listeners
+    if (btnPrevWeek) btnPrevWeek.addEventListener('click', () => changeWeek(-1));
+    if (btnNextWeek) btnNextWeek.addEventListener('click', () => changeWeek(1));
+    if (fabBtn) fabBtn.addEventListener('click', openNewTaskModal);
+    if (closeFormBtn) closeFormBtn.addEventListener('click', () => modalForm.classList.add('hidden'));
+    if (closeViewBtn) closeViewBtn.addEventListener('click', () => modalView.classList.add('hidden'));
 
     initCustomTimePicker();
-
-    // Инициализация свайпов для модальных окон
-    initModalSwipe(modalForm);
-    initModalSwipe(modalView);
 }
 
 function loadData() {
@@ -151,76 +162,18 @@ function loadData() {
     if (raw) {
         const loaded = JSON.parse(raw);
         state.tasks = loaded.tasks || [];
-        state.currentWeekStart = loaded.currentWeekStart;
-        state.lang = loaded.lang || 'en';
+        state.lang = loaded.lang || 'ru';
     } else {
-        state.currentWeekStart = getMonday(new Date()).getTime();
-        state.tasks = [];
-        state.lang = 'en';
+        state.viewWeekStart = getMonday(new Date()).getTime();
         saveData();
     }
 }
 
 function saveData() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-}
-
-// ==========================================
-// LANG SWITCHER
-// ==========================================
-
-function applyLanguage() {
-    const t = TRANSLATIONS[state.lang];
-    if (!t) return;
-    document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        if (t[key]) el.textContent = t[key];
-    });
-    if (inputTitle) inputTitle.placeholder = t.placeholderTitle;
-    if (inputDesc) inputDesc.placeholder = t.placeholderDesc;
-}
-
-const animatedContainers = [
-    document.querySelector('.header'),
-    document.querySelector('.day-nav'),
-    document.querySelector('.schedule-viewport')
-];
-
-langTabs.forEach(tab => {
-    tab.addEventListener('click', () => {
-        const selectedLang = tab.getAttribute('data-lang');
-        if (state.lang === selectedLang) return;
-
-        state.lang = selectedLang;
-        updateLangTabsUI();
-
-        animatedContainers.forEach(el => el.classList.add('content-fading'));
-
-        setTimeout(() => {
-            saveData();
-            applyLanguage();
-            renderHeader();
-            renderNav();
-            renderModalDaySelector();
-            renderSchedule();
-            updateSliderPosition();
-            setTimeout(() => {
-                animatedContainers.forEach(el => el.classList.remove('content-fading'));
-            }, 50);
-        }, 200);
-    });
-});
-
-function updateLangTabsUI() {
-    const langsOrder = ['en', 'uk', 'ru'];
-    const activeIndex = langsOrder.indexOf(state.lang);
-    if (langGlider && activeIndex !== -1) {
-        langGlider.style.transform = `translateX(${activeIndex * 100}%)`;
-    }
-    langTabs.forEach(tab => {
-        if (tab.getAttribute('data-lang') === state.lang) tab.classList.add('active');
-        else tab.classList.remove('active');
-    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        tasks: state.tasks,
+        lang: state.lang
+    }));
 }
 
 // ==========================================
@@ -236,82 +189,94 @@ function getMonday(d) {
     return monday;
 }
 
-function checkWeekUpdate() {
-    const todayMonday = getMonday(new Date()).getTime();
-    if (todayMonday > state.currentWeekStart) {
-        migrateTasksToNewWeek(todayMonday);
-    }
+function changeWeek(offset) {
+    const currentView = new Date(state.viewWeekStart);
+    currentView.setDate(currentView.getDate() + (offset * 7));
+    const newTime = currentView.getTime();
+
+    const realMonday = getMonday(new Date()).getTime();
+
+    if (offset > 0 && newTime > realMonday) return;
+    if (offset < 0 && newTime < LIMIT_START_DATE) return;
+
+    state.viewWeekStart = newTime;
+    renderHeader();
+    renderSchedule();
 }
 
-function migrateTasksToNewWeek(newMondayTimestamp) {
-    const newTasks = [];
-    const newMondayDate = new Date(newMondayTimestamp);
-    state.tasks.forEach(task => {
-        if (task.isPermanent) {
-            let migratedTask = { ...task };
-            migratedTask.isCompleted = false;
-            let nextDate = new Date(newMondayDate);
-            nextDate.setDate(newMondayDate.getDate() + migratedTask.dayIndex);
-            migratedTask.date = nextDate.toISOString().split('T')[0];
-            newTasks.push(migratedTask);
+function updateNavArrows() {
+    if (!btnPrevWeek || !btnNextWeek) return;
+    const current = state.viewWeekStart;
+    const realMonday = getMonday(new Date()).getTime();
+
+    if (current <= LIMIT_START_DATE) btnPrevWeek.classList.add('disabled');
+    else btnPrevWeek.classList.remove('disabled');
+
+    if (current >= realMonday) btnNextWeek.classList.add('disabled');
+    else btnNextWeek.classList.remove('disabled');
+}
+
+function checkAndGenerateCurrentWeek() {
+    const realMonday = getMonday(new Date()).getTime();
+    const hasTasksForRealWeek = state.tasks.some(t => {
+        const tDate = new Date(t.date).getTime();
+        return tDate >= realMonday && tDate < realMonday + (7 * 24 * 60 * 60 * 1000);
+    });
+
+    if (!hasTasksForRealWeek && state.tasks.length > 0) {
+        const sortedTasks = [...state.tasks].sort((a, b) => new Date(b.date) - new Date(a.date));
+        if (sortedTasks.length === 0) return;
+
+        const lastTaskDate = new Date(sortedTasks[0].date);
+        const lastKnownMonday = getMonday(lastTaskDate).getTime();
+
+        if (lastKnownMonday < realMonday) {
+            const tasksToCopy = state.tasks.filter(t => {
+                const tDate = getMonday(new Date(t.date)).getTime();
+                return t.isPermanent && tDate === lastKnownMonday;
+            });
+
+            const newTasks = [];
+            tasksToCopy.forEach(task => {
+                let newTask = { ...task };
+                newTask.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
+                newTask.isCompleted = false;
+                let dateObj = new Date(realMonday);
+                dateObj.setDate(dateObj.getDate() + newTask.dayIndex);
+                newTask.date = dateObj.toISOString().split('T')[0];
+                newTasks.push(newTask);
+            });
+
+            state.tasks = [...state.tasks, ...newTasks];
+            saveData();
         }
-    });
-    state.tasks = newTasks;
-    state.currentWeekStart = newMondayTimestamp;
-    saveData();
-}
-
-// ==========================================
-// CRUD
-// ==========================================
-
-function saveNewTasks(title, dayIndices, time, isPermanent, desc) {
-    const currentMonday = new Date(state.currentWeekStart);
-    dayIndices.forEach(dayIndex => {
-        let taskDate = new Date(currentMonday);
-        taskDate.setDate(currentMonday.getDate() + dayIndex);
-        const newTask = {
-            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-            title, dayIndex, time, isPermanent, description: desc,
-            date: taskDate.toISOString().split('T')[0],
-            isCompleted: false,
-            createdAt: new Date().toISOString()
-        };
-        state.tasks.push(newTask);
-    });
-    saveData();
-    renderSchedule();
-}
-
-function updateExistingTask(id, title, dayIndex, time, isPermanent, desc) {
-    const idx = state.tasks.findIndex(t => t.id === id);
-    if (idx !== -1) {
-        const currentMonday = new Date(state.currentWeekStart);
-        let taskDate = new Date(currentMonday);
-        taskDate.setDate(currentMonday.getDate() + dayIndex);
-        state.tasks[idx] = {
-            ...state.tasks[idx],
-            title, dayIndex, time, isPermanent, description: desc,
-            date: taskDate.toISOString().split('T')[0]
-        };
-        saveData();
-        renderSchedule();
     }
 }
 
-function deleteTask(id) {
-    const t = TRANSLATIONS[state.lang];
-    if (!confirm(t.confirmDelete)) return;
-    state.tasks = state.tasks.filter(t => t.id !== id);
-    saveData();
-    renderSchedule();
-    modalForm.classList.add('hidden');
-    modalView.classList.add('hidden');
-}
+// ==========================================
+// FORM
+// ==========================================
 
-// ==========================================
-// FORM HANDLING
-// ==========================================
+function openNewTaskModal() {
+    const t = TRANSLATIONS[state.lang];
+    editingTaskId = null;
+    viewingTaskId = null;
+    modalTitle.textContent = t.newTask;
+    btnDelete.classList.add('hidden');
+    taskForm.reset();
+    renderModalDaySelector();
+
+    // Auto-select current viewed day
+    const dayToSelect = (currentDayIndex >= 0 && currentDayIndex <= 6) ? currentDayIndex : 0;
+    const container = document.getElementById('day-selector');
+    if (container) {
+        const btn = container.querySelector(`.day-option[data-day="${dayToSelect}"]`);
+        if (btn) btn.classList.add('selected');
+    }
+    dayInput.value = dayToSelect;
+
+    modalForm.classList.remove('hidden');
+}
 
 function renderModalDaySelector() {
     const container = document.getElementById('day-selector');
@@ -346,16 +311,10 @@ taskForm.addEventListener('submit', (e) => {
     const isPermanent = document.getElementById('t-permanent').checked;
     const desc = document.getElementById('t-desc').value.trim();
 
-    if (!title || !time) {
-        alert(t.alertTitleTime);
-        return;
-    }
+    if (!title || !time) { alert(t.alertTitleTime); return; }
     const selectedDaysElements = document.querySelectorAll('.day-option.selected');
     const selectedIndices = Array.from(selectedDaysElements).map(el => parseInt(el.dataset.day));
-    if (selectedIndices.length === 0) {
-        alert(t.alertDay);
-        return;
-    }
+    if (selectedIndices.length === 0) { alert(t.alertDay); return; }
 
     if (editingTaskId) {
         updateExistingTask(editingTaskId, title, selectedIndices[0], time, isPermanent, desc);
@@ -363,166 +322,33 @@ taskForm.addEventListener('submit', (e) => {
         saveNewTasks(title, selectedIndices, time, isPermanent, desc);
     }
     modalForm.classList.add('hidden');
-    modalView.classList.add('hidden');
 });
 
-btnDelete.addEventListener('click', () => {
-    if (editingTaskId) deleteTask(editingTaskId);
-});
+if (btnDelete) btnDelete.addEventListener('click', () => { if (editingTaskId) deleteTask(editingTaskId); });
 
 // ==========================================
-// MODAL LOGIC
-// ==========================================
-// Функция обработки свайпа вниз для закрытия
-function initModalSwipe(modalOverlay) {
-    const card = modalOverlay.querySelector('.modal-card');
-    let startY = 0;
-    let currentY = 0;
-    let isDragging = false;
-
-    // Закрытие по клику на фон (если клик был именно по оверлею, а не по карточке)
-    modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) {
-            modalOverlay.classList.add('hidden');
-        }
-    });
-
-    // Начало касания
-    card.addEventListener('touchstart', (e) => {
-        // Если мы не в самом верху прокрутки, не активируем свайп закрытия (чтобы работал скролл контента)
-        if (card.scrollTop > 0) return;
-
-        startY = e.touches[0].clientY;
-        isDragging = true;
-        card.style.transition = 'none'; // Убираем анимацию для прямого следования за пальцем
-    }, { passive: true });
-
-    // Движение пальца
-    card.addEventListener('touchmove', (e) => {
-        if (!isDragging) return;
-        currentY = e.touches[0].clientY;
-        const diff = currentY - startY;
-
-        // Если тянем вниз (diff > 0)
-        if (diff > 0) {
-            // e.preventDefault(); // Можно включить, если скролл мешает, но с passive:true нельзя
-            card.style.transform = `translateY(${diff}px)`;
-        }
-    }, { passive: true });
-
-    // Конец касания
-    card.addEventListener('touchend', () => {
-        if (!isDragging) return;
-        isDragging = false;
-        card.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1)'; // Возвращаем плавность
-
-        const diff = currentY - startY;
-        // Если протащили больше 120px вниз -> закрываем
-        if (diff > 120 && card.scrollTop <= 0) {
-            modalOverlay.classList.add('hidden');
-            // Сброс стиля после закрытия
-            setTimeout(() => {
-                card.style.transform = '';
-            }, 300);
-        } else {
-            // Иначе возвращаем на место
-            card.style.transform = '';
-        }
-    });
-}
-
-// ... (Дальше идут стандартные функции открытия модалок openViewModal, openEditModal и т.д.) ...
-// Убедитесь, что функции открытия модалок (ниже) используют ваши переменные.
-
-window.openViewModal = function (id) {
-    const task = state.tasks.find(t => t.id === id);
-    if (!task) return;
-    const t = TRANSLATIONS[state.lang];
-    viewingTaskId = id;
-    vTitle.textContent = task.title;
-    const days = t.daysFull;
-    vTimeDate.textContent = `${days[task.dayIndex]} • ${task.time}`;
-    vDesc.textContent = task.description ? task.description : t.noDesc;
-
-    // Сброс трансформации перед открытием
-    const card = modalView.querySelector('.modal-card');
-    card.style.transform = '';
-
-    modalView.classList.remove('hidden');
-};
-
-btnGoToEdit.addEventListener('click', () => {
-    if (viewingTaskId) {
-        modalView.classList.add('hidden');
-        openEditModal(viewingTaskId);
-    }
-});
-
-function openEditModal(id) {
-    const task = state.tasks.find(t => t.id === id);
-    if (!task) return;
-    const t = TRANSLATIONS[state.lang];
-    editingTaskId = id;
-    modalTitle.textContent = t.editTask;
-    btnDelete.classList.remove('hidden');
-    document.getElementById('t-title').value = task.title;
-    document.getElementById('t-time').value = task.time;
-    document.getElementById('t-permanent').checked = task.isPermanent;
-    document.getElementById('t-desc').value = task.description || '';
-    renderModalDaySelector();
-    dayInput.value = task.dayIndex;
-    const container = document.getElementById('day-selector');
-    const btn = container.querySelector(`.day-option[data-day="${task.dayIndex}"]`);
-    if (btn) btn.classList.add('selected');
-
-    const card = modalForm.querySelector('.modal-card');
-    card.style.transform = '';
-
-    modalForm.classList.remove('hidden');
-}
-
-fabBtn.addEventListener('click', () => {
-    const t = TRANSLATIONS[state.lang];
-    editingTaskId = null;
-    viewingTaskId = null;
-    modalTitle.textContent = t.newTask;
-    btnDelete.classList.add('hidden');
-    taskForm.reset();
-    renderModalDaySelector();
-    const container = document.getElementById('day-selector');
-    const btn = container.querySelector(`.day-option[data-day="${currentDayIndex}"]`);
-    if (btn) btn.classList.add('selected');
-    dayInput.value = currentDayIndex;
-    document.getElementById('t-time').value = '';
-
-    const card = modalForm.querySelector('.modal-card');
-    card.style.transform = '';
-
-    modalForm.classList.remove('hidden');
-});
-
-closeFormBtn.addEventListener('click', () => modalForm.classList.add('hidden'));
-closeViewBtn.addEventListener('click', () => modalView.classList.add('hidden'));
-
-// ==========================================
-// UI RENDERING
+// RENDER
 // ==========================================
 
 function renderHeader() {
-    const start = new Date(state.currentWeekStart);
+    const start = new Date(state.viewWeekStart);
     const end = new Date(start);
     end.setDate(start.getDate() + 6);
     const locale = TRANSLATIONS[state.lang].dateFormat;
-    const opts = { day: 'numeric', month: 'long' };
     document.getElementById('current-week-dates').textContent =
-        `${start.toLocaleDateString(locale, opts)} — ${end.toLocaleDateString(locale, opts)}`;
+        `${start.toLocaleDateString(locale, { day: 'numeric', month: 'short' })} — ${end.toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    updateNavArrows();
 }
 
 function renderNav() {
     const days = TRANSLATIONS[state.lang].daysShort;
     const currentDayOfWeek = (new Date().getDay() + 6) % 7;
+    const viewMonday = state.viewWeekStart;
+    const realMonday = getMonday(new Date()).getTime();
+    const isCurrentWeekView = viewMonday === realMonday;
+
     dayNavTrack.innerHTML = days.map((d, i) => {
-        const isToday = (i === currentDayOfWeek);
+        const isToday = isCurrentWeekView && (i === currentDayOfWeek);
         return `<button class="nav-btn ${isToday ? 'today' : ''}" onclick="goToDay(${i})">${d}</button>`;
     }).join('');
     updateNavHighlight();
@@ -543,13 +369,17 @@ function renderSchedule() {
     scheduleTrack.innerHTML = '';
     const daysFull = TRANSLATIONS[state.lang].daysFull;
     const locale = TRANSLATIONS[state.lang].dateFormat;
-    const currentMonday = new Date(state.currentWeekStart);
+    const viewMonday = new Date(state.viewWeekStart);
+
     for (let i = 0; i < 7; i++) {
-        let dayTasks = state.tasks.filter(t => t.dayIndex === i);
-        dayTasks.sort((a, b) => a.time.localeCompare(b.time));
-        let dateObj = new Date(currentMonday);
-        dateObj.setDate(currentMonday.getDate() + i);
+        let dateObj = new Date(viewMonday);
+        dateObj.setDate(viewMonday.getDate() + i);
         let dateStr = dateObj.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
+        let dateIso = dateObj.toISOString().split('T')[0];
+
+        let dayTasks = state.tasks.filter(t => t.date === dateIso);
+        dayTasks.sort((a, b) => a.time.localeCompare(b.time));
+
         const slide = document.createElement('div');
         slide.className = 'day-slide';
         let html = `
@@ -569,9 +399,6 @@ function renderSchedule() {
             dayTasks.forEach(task => {
                 const checked = task.isCompleted ? 'checked' : '';
                 const completedCls = task.isCompleted ? 'completed' : '';
-                const permIcon = task.isPermanent ? `<span class="perm-stripe"></span><i class="ph-bold ph-infinity perm-icon"></i>` : '';
-
-                // Рендер карточки с новой структурой
                 html += `
                 <div class="task-card ${completedCls}">
                     ${task.isPermanent ? '<div class="permanent-stripe"></div>' : ''}
@@ -596,250 +423,176 @@ function renderSchedule() {
 }
 
 // ==========================================
-// TEXT ANALYSIS
+// CRUD
 // ==========================================
 
-function attachTextAnalyzer(element) {
-    if (!element) return;
-    element.addEventListener('input', () => {
-        const text = element.value;
-        detectAndSetLang(element, text);
-        if (isGibberish(text)) element.classList.add('input-warning');
-        else element.classList.remove('input-warning');
+function saveNewTasks(title, dayIndices, time, isPermanent, desc) {
+    const viewMonday = new Date(state.viewWeekStart);
+    dayIndices.forEach(dayIndex => {
+        let taskDate = new Date(viewMonday);
+        taskDate.setDate(viewMonday.getDate() + dayIndex);
+        state.tasks.push({
+            id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+            title, dayIndex, time, isPermanent, description: desc,
+            date: taskDate.toISOString().split('T')[0],
+            isCompleted: false
+        });
     });
+    saveData();
+    renderSchedule();
 }
 
-function detectAndSetLang(element, text) {
-    if (!text) return;
-    const cyrillicCount = (text.match(/[а-яА-ЯёЁіІїЇєЄґҐ]/g) || []).length;
-    const latinCount = (text.match(/[a-zA-Z]/g) || []).length;
-    if (cyrillicCount > latinCount) {
-        element.setAttribute('lang', state.lang === 'uk' ? 'uk' : 'ru');
-    } else if (latinCount > cyrillicCount) {
-        element.setAttribute('lang', 'en');
+function updateExistingTask(id, title, dayIndex, time, isPermanent, desc) {
+    const idx = state.tasks.findIndex(t => t.id === id);
+    if (idx !== -1) {
+        const oldTask = state.tasks[idx];
+        const taskDateObj = new Date(oldTask.date);
+        const currentMonday = getMonday(taskDateObj);
+        let newDate = new Date(currentMonday);
+        newDate.setDate(currentMonday.getDate() + dayIndex);
+        state.tasks[idx] = { ...state.tasks[idx], title, dayIndex, time, isPermanent, description: desc, date: newDate.toISOString().split('T')[0] };
+        saveData();
+        renderSchedule();
     }
 }
 
-function isGibberish(text) {
-    if (!text || text.length < 4) return false;
-    const repetitionRegex = /(.)\1{4,}/;
-    const patternRepetition = /(.{2,})\1{3,}/;
-    const longWordRegex = /\S{25,}/;
-    if (repetitionRegex.test(text)) return true;
-    if (patternRepetition.test(text)) return true;
-    if (longWordRegex.test(text)) return true;
-    return false;
+function deleteTask(id) {
+    if (!confirm(TRANSLATIONS[state.lang].confirmDelete)) return;
+    state.tasks = state.tasks.filter(t => t.id !== id);
+    saveData();
+    renderSchedule();
+    modalForm.classList.add('hidden');
+    modalView.classList.add('hidden');
+}
+
+function toggleTaskStatus(id) {
+    const task = state.tasks.find(t => t.id === id);
+    if (task) { task.isCompleted = !task.isCompleted; saveData(); renderSchedule(); }
 }
 
 // ==========================================
-// SWIPER
+// HELPERS
 // ==========================================
 
+function applyLanguage() {
+    const t = TRANSLATIONS[state.lang];
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (t[key]) el.textContent = t[key];
+    });
+    if (inputTitle) inputTitle.placeholder = t.placeholderTitle;
+    if (inputDesc) inputDesc.placeholder = t.placeholderDesc;
+}
+
+langTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+        state.lang = tab.getAttribute('data-lang');
+        updateLangTabsUI();
+        saveData();
+        applyLanguage();
+        renderHeader(); renderNav(); renderSchedule();
+    });
+});
+
+function updateLangTabsUI() {
+    const langsOrder = ['en', 'uk', 'ru'];
+    const activeIndex = langsOrder.indexOf(state.lang);
+    if (langGlider && activeIndex !== -1) langGlider.style.transform = `translateX(${activeIndex * 100}%)`;
+    langTabs.forEach(tab => {
+        if (tab.getAttribute('data-lang') === state.lang) tab.classList.add('active');
+        else tab.classList.remove('active');
+    });
+}
+
 window.goToDay = function (index) {
-    if (index < 0) index = 0;
-    if (index > 6) index = 6;
-    currentDayIndex = index;
+    currentDayIndex = Math.max(0, Math.min(6, index));
     updateSliderPosition();
     updateNavHighlight();
 };
 
 function updateSliderPosition() {
-    const translateX = -(currentDayIndex * 100);
-    scheduleTrack.style.transform = `translateX(${translateX}%)`;
+    scheduleTrack.style.transform = `translateX(-${currentDayIndex * 100}%)`;
 }
 
 function initSwipe() {
     let startX = 0;
-    let endX = 0;
     const viewport = document.getElementById('schedule-viewport');
     viewport.addEventListener('touchstart', e => { startX = e.changedTouches[0].screenX; }, { passive: true });
     viewport.addEventListener('touchend', e => {
-        endX = e.changedTouches[0].screenX;
-        const threshold = 50;
-        if (startX - endX > threshold) goToDay(currentDayIndex + 1);
-        else if (endX - startX > threshold) goToDay(currentDayIndex - 1);
+        const diff = startX - e.changedTouches[0].screenX;
+        if (diff > 50) goToDay(currentDayIndex + 1);
+        else if (diff < -50) goToDay(currentDayIndex - 1);
     }, { passive: true });
 }
 
-// ==========================================
-// IOS PICKER (COMPACT)
-// ==========================================
+window.openViewModal = function (id) {
+    const task = state.tasks.find(t => t.id === id);
+    if (!task) return;
+    const t = TRANSLATIONS[state.lang];
+    viewingTaskId = id;
+    vTitle.textContent = task.title;
+    vTimeDate.textContent = `${t.daysFull[task.dayIndex]} • ${task.time}`;
+    vDesc.textContent = task.description || t.noDesc;
+    modalView.classList.remove('hidden');
+};
 
-const timeInput = document.getElementById('t-time');
+if (btnGoToEdit) btnGoToEdit.addEventListener('click', () => {
+    modalView.classList.add('hidden');
+    // Open edit logic needs task info, handled by openNewTaskModal pre-fill logic if adapted,
+    // but here we just simplify:
+    const task = state.tasks.find(t => t.id === viewingTaskId);
+    if (task) {
+        editingTaskId = viewingTaskId;
+        modalTitle.textContent = TRANSLATIONS[state.lang].editTask;
+        btnDelete.classList.remove('hidden');
+        document.getElementById('t-title').value = task.title;
+        document.getElementById('t-time').value = task.time;
+        document.getElementById('t-permanent').checked = task.isPermanent;
+        document.getElementById('t-desc').value = task.description || '';
+        renderModalDaySelector();
+        dayInput.value = task.dayIndex;
+        // Fix selector UI
+        const container = document.getElementById('day-selector');
+        const btn = container.querySelector(`.day-option[data-day="${task.dayIndex}"]`);
+        if (btn) btn.classList.add('selected');
+
+        modalForm.classList.remove('hidden');
+    }
+});
+
+// TIME PICKER
+const timeInputTrigger = document.getElementById('t-time');
 const pickerOverlay = document.getElementById('ios-time-picker');
 const pickerDoneBtn = document.getElementById('picker-done-btn');
 const colHours = document.getElementById('col-hours');
 const colMinutes = document.getElementById('col-minutes');
-let scrollTimeout;
 
 function initCustomTimePicker() {
-    generatePickerItems(colHours, 24);
-    generatePickerItems(colMinutes, 60);
-
-    // Настраиваем взаимодействие (Колесико + Мышка)
-    setupColumnInteractions(colHours);
-    setupColumnInteractions(colMinutes);
-
-    timeInput.addEventListener('click', () => openPicker());
-    pickerDoneBtn.addEventListener('click', () => {
-        saveTimeFromPicker();
-        closePicker();
-    });
-
-    pickerOverlay.addEventListener('click', (e) => {
-        if (e.target === pickerOverlay) closePicker();
-    });
-
-    // Обычный скролл (инерция) тоже обновляет подсветку
-    colHours.addEventListener('scroll', () => handleScroll(colHours));
-    colMinutes.addEventListener('scroll', () => handleScroll(colMinutes));
-}
-
-// --- ГЕНЕРАЦИЯ ЦИФР ---
-function generatePickerItems(container, count) {
-    container.innerHTML = '';
-    // CSS .spacer теперь должен быть (160 - 44) / 2 = 58px
-    const topSpacer = document.createElement('div');
-    topSpacer.className = 'spacer';
-    container.appendChild(topSpacer);
-
-    for (let i = 0; i < count; i++) {
-        const div = document.createElement('div');
-        div.className = 'picker-item';
-        div.textContent = i.toString().padStart(2, '0');
-        div.dataset.val = i;
-        container.appendChild(div);
-    }
-    const botSpacer = document.createElement('div');
-    botSpacer.className = 'spacer';
-    container.appendChild(botSpacer);
-}
-
-// --- ЛОГИКА DRAG & DROP И КОЛЕСИКА ---
-function setupColumnInteractions(column) {
-    const itemHeight = 44; // Высота одного элемента
-    let isDown = false;
-    let startY;
-    let scrollTop;
-
-    // 1. КОЛЕСИКО МЫШИ (Точно по одному элементу)
-    column.addEventListener('wheel', (e) => {
-        e.preventDefault(); // Останавливаем стандартный быстрый скролл
-
-        // Определяем направление (вверх или вниз)
-        const direction = e.deltaY > 0 ? 1 : -1;
-
-        // Скроллим ровно на высоту одного элемента
-        column.scrollBy({
-            top: direction * itemHeight,
-            behavior: 'smooth'
-        });
-    });
-
-    // 2. НАЖАТИЕ МЫШКИ (Начало перетаскивания)
-    column.addEventListener('mousedown', (e) => {
-        isDown = true;
-        column.classList.add('is-dragging'); // Отключаем CSS-прилипание
-        startY = e.pageY - column.offsetTop;
-        scrollTop = column.scrollTop;
-    });
-
-    // 3. ВЫХОД ЗА ПРЕДЕЛЫ
-    column.addEventListener('mouseleave', () => {
-        if (isDown) {
-            isDown = false;
-            column.classList.remove('is-dragging');
-            snapToNearest(column); // Доводка при потере фокуса
+    const createItems = (cont, count) => {
+        cont.innerHTML = '<div class="spacer" style="height:70px"></div>';
+        for (let i = 0; i < count; i++) {
+            const d = document.createElement('div');
+            d.className = 'picker-item';
+            d.textContent = i.toString().padStart(2, '0');
+            cont.appendChild(d);
         }
+        cont.innerHTML += '<div class="spacer" style="height:70px"></div>';
+    };
+    createItems(colHours, 24);
+    createItems(colMinutes, 60);
+
+    timeInputTrigger.addEventListener('click', () => {
+        pickerOverlay.classList.remove('hidden');
+        setTimeout(() => pickerOverlay.classList.add('active'), 10);
     });
 
-    // 4. ОТПУСКАНИЕ МЫШКИ
-    column.addEventListener('mouseup', () => {
-        isDown = false;
-        column.classList.remove('is-dragging'); // Включаем CSS-прилипание обратно
-        snapToNearest(column); // Доводка к центру
+    pickerDoneBtn.addEventListener('click', () => {
+        const h = Math.round(colHours.scrollTop / 40);
+        const m = Math.round(colMinutes.scrollTop / 40);
+        const validH = Math.min(Math.max(0, h), 23);
+        const validM = Math.min(Math.max(0, m), 59);
+        timeInputTrigger.value = `${validH.toString().padStart(2, '0')}:${validM.toString().padStart(2, '0')}`;
+        pickerOverlay.classList.remove('active');
+        setTimeout(() => pickerOverlay.classList.add('hidden'), 300);
     });
-
-    // 5. ДВИЖЕНИЕ МЫШКИ
-    column.addEventListener('mousemove', (e) => {
-        if (!isDown) return;
-        e.preventDefault();
-        const y = e.pageY - column.offsetTop;
-        const walk = (y - startY) * 1.5; // Скорость прокрутки (можно менять)
-        column.scrollTop = scrollTop - walk;
-    });
-}
-
-// Функция "доводки" до ближайшего элемента после перетаскивания мышкой
-function snapToNearest(column) {
-    const itemHeight = 44;
-    const currentScroll = column.scrollTop;
-    const targetIndex = Math.round(currentScroll / itemHeight);
-
-    column.scrollTo({
-        top: targetIndex * itemHeight,
-        behavior: 'smooth'
-    });
-}
-
-// --- ОТКРЫТИЕ/ЗАКРЫТИЕ ---
-function openPicker() {
-    let [h, m] = timeInput.value.split(':').map(Number);
-    if (isNaN(h)) {
-        const now = new Date();
-        h = now.getHours();
-        m = now.getMinutes();
-    }
-    pickerOverlay.classList.remove('hidden');
-    setTimeout(() => pickerOverlay.classList.add('active'), 10);
-
-    // Ждем отрисовки, чтобы скролл сработал
-    setTimeout(() => {
-        scrollToValue(colHours, h);
-        scrollToValue(colMinutes, m);
-    }, 50);
-}
-
-function closePicker() {
-    pickerOverlay.classList.remove('active');
-    setTimeout(() => pickerOverlay.classList.add('hidden'), 300);
-}
-
-function scrollToValue(column, value) {
-    const itemHeight = 44;
-    column.scrollTop = value * itemHeight;
-    // highlightItem вызовется сам через событие 'scroll'
-}
-
-function handleScroll(column) {
-    clearTimeout(scrollTimeout);
-    scrollTimeout = setTimeout(() => highlightItem(column), 20); // Реакция быстрее (20мс)
-}
-
-function highlightItem(column) {
-    const itemHeight = 44;
-    const scrollPos = column.scrollTop;
-    const index = Math.round(scrollPos / itemHeight);
-
-    const items = column.querySelectorAll('.picker-item');
-    items.forEach(item => item.classList.remove('selected'));
-
-    // +1 из-за spacer'а в начале
-    // Но так как querySelectorAll берет и picker-item, то индекс должен совпадать с данными
-    if (items[index]) {
-        items[index].classList.add('selected');
-    }
-}
-
-function saveTimeFromPicker() {
-    const itemHeight = 44;
-    const hIndex = Math.round(colHours.scrollTop / itemHeight);
-    const mIndex = Math.round(colMinutes.scrollTop / itemHeight);
-
-    const h = Math.min(Math.max(0, hIndex), 23);
-    const m = Math.min(Math.max(0, mIndex), 59);
-
-    const timeString = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-    timeInput.value = timeString;
-    timeInput.dispatchEvent(new Event('input'));
 }

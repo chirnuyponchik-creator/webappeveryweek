@@ -22,15 +22,47 @@
     </div>
 
     <div id="app">
-        <header class="header">
-            <div class="header-top">
-                <div class="header-user">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="user-profile">
                     <div class="user-avatar">
                         <i class="ph-fill ph-user"></i>
                     </div>
-                    <div class="user-greeting">
-                        <span class="greeting-text" data-i18n="appTitle">Моя Неделя</span>
+                    <div class="user-info">
+                        <div class="user-name">Guest User</div>
+                        <div class="user-plan">Free Plan</div>
                     </div>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <button class="menu-item active">
+                    <i class="ph-bold ph-calendar"></i>
+                    <span data-i18n="appTitle">Моя Неделя</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-footer">
+                <button id="fab-add" class="btn-new-task">
+                    <i class="ph-bold ph-plus"></i>
+                    <span data-i18n="newTask">Новая задача</span>
+                </button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <div class="mobile-menu-btn"><i class="ph-bold ph-list"></i></div>
+                </div>
+
+                <div class="date-navigator">
+                    <button id="prev-week" class="nav-arrow"><i class="ph-bold ph-caret-left"></i></button>
+                    <div class="date-display">
+                        <i class="ph ph-calendar-blank"></i>
+                        <span id="current-week-dates">...</span>
+                    </div>
+                    <button id="next-week" class="nav-arrow"><i class="ph-bold ph-caret-right"></i></button>
                 </div>
 
                 <div class="lang-switcher">
@@ -39,26 +71,17 @@
                     <button class="lang-tab" data-lang="uk">UA</button>
                     <button class="lang-tab" data-lang="ru">RU</button>
                 </div>
+            </header>
+
+            <nav class="day-nav">
+                <div class="day-nav-track" id="day-nav-track"></div>
+            </nav>
+
+            <div id="schedule-viewport" class="schedule-viewport">
+                <div id="schedule-track" class="schedule-track"></div>
             </div>
-
-            <div class="header-date">
-                <i class="ph ph-calendar-blank"></i>
-                <span id="current-week-dates">...</span>
-            </div>
-        </header>
-
-        <nav class="day-nav">
-            <div class="day-nav-track" id="day-nav-track"></div>
-        </nav>
-
-        <main id="schedule-viewport" class="schedule-viewport">
-            <div id="schedule-track" class="schedule-track"></div>
         </main>
     </div>
-
-    <button id="fab-add" class="fab">
-        <i class="ph-bold ph-plus"></i>
-    </button>
 
     <div id="modal-overlay" class="modal-overlay hidden">
         <div class="modal-card glass-panel">
@@ -76,8 +99,7 @@
 
                 <div class="form-group">
                     <label><i class="ph-bold ph-calendar-check"></i> <span data-i18n="lblDay">День недели</span></label>
-                    <div class="day-selector" id="day-selector">
-                    </div>
+                    <div class="day-selector" id="day-selector"></div>
                     <input type="hidden" id="t-day-index" required>
                 </div>
 
@@ -103,8 +125,8 @@
                 </div>
 
                 <div class="modal-actions">
-                    <button type="button" id="btn-delete" class="btn-delete hidden"
-                        data-i18n="btnDelete">Удалить</button>
+                    <button type="button" id="btn-delete" class="btn-delete hidden" data-i18n="btnDelete"><i
+                            class="ph-bold ph-trash"></i></button>
                     <button type="submit" class="btn-primary" data-i18n="btnSave">Сохранить</button>
                 </div>
             </form>
