@@ -269,13 +269,13 @@ function closeSidebar() {
 }
 
 // ==========================================
-// DATA & DATE LOGIC (UPDATED FOR SYNC)
+// DATA & DATE LOGIC (SMART SYNC FIXED)
 // ==========================================
 
-let saveTimeout = null; // Переменная для таймера сохранения
+let saveTimeout = null;
 
 async function loadData() {
-    // 1. Сначала грузим из LocalStorage (чтобы интерфейс появился мгновенно)
+    // 1. Грузим из LocalStorage
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
         try {
@@ -283,51 +283,42 @@ async function loadData() {
             state.tasks = loaded.tasks || [];
             state.lang = loaded.lang || 'ru';
             state.theme = loaded.theme || 'light';
+            // Если метки времени нет, ставим 0 (значит данные старые)
+            state.lastUpdated = loaded.lastUpdated || 0;
         } catch (e) {
-            console.error("Local data parse error", e);
+            console.error("Local parse error", e);
         }
     } else {
         setupDefaultState();
     }
 
-    // Отрисовываем то, что есть локально
-    applyLanguage();
-    updateThemeUI();
-    renderHeader();
-    renderSchedule();
+    // Отрисовываем то, что есть
+    applyUIUpdates();
 
-    // 2. Теперь тихо пытаемся подтянуть данные из облака
+    // 2. Грузим из облака
     try {
         const response = await fetch('/.netlify/functions/api');
         if (response.ok) {
             const cloudData = await response.json();
 
-            // Если в облаке есть данные (не null и есть задачи или настройки)
-            if (cloudData && (cloudData.tasks || cloudData.lang)) {
-                console.log("Cloud data loaded:", cloudData);
+            // ПРОВЕРКА: Если в облаке данные новее, чем у нас -> обновляем
+            if (cloudData && cloudData.lastUpdated > (state.lastUpdated || 0)) {
+                console.log("Cloud data is newer. Updating...");
 
-                // Обновляем стейт
                 state.tasks = cloudData.tasks || [];
                 state.lang = cloudData.lang || state.lang;
                 state.theme = cloudData.theme || state.theme;
+                state.lastUpdated = cloudData.lastUpdated;
 
-                // Сохраняем актуальную версию в локалку
-                localStorage.setItem(STORAGE_KEY, JSON.stringify({
-                    tasks: state.tasks,
-                    lang: state.lang,
-                    theme: state.theme
-                }));
-
-                // Перерисовываем интерфейс с новыми данными
-                applyLanguage();
-                updateThemeUI(); // Обновит тему, если она сменилась на другом устройстве
-                updateLangTabsUI();
-                renderSchedule();
+                // Сохраняем новую версию локально
+                saveLocal();
+                applyUIUpdates();
+            } else {
+                console.log("Local data is up to date (or newer). Keeping local.");
             }
         }
     } catch (error) {
         console.error("Sync error:", error);
-        // Если ошибка сети — ничего страшного, пользователь работает с локальной версией
     }
 }
 
@@ -336,39 +327,61 @@ function setupDefaultState() {
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         state.theme = 'dark';
     }
-    // Сохраняем дефолт сразу локально
+    state.lastUpdated = Date.now();
+    saveLocal();
+}
+
+// Вспомогательная функция для обновления интерфейса
+function applyUIUpdates() {
+    applyLanguage();
+    updateThemeUI();
+    updateLangTabsUI();
+    renderHeader();
+    renderSchedule();
+}
+
+// Просто сохраняет в LocalStorage
+function saveLocal() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
         tasks: state.tasks,
         lang: state.lang,
-        theme: state.theme
+        theme: state.theme,
+        lastUpdated: state.lastUpdated
     }));
 }
 
 function saveData() {
-    // 1. Сохраняем в LocalStorage мгновенно (для отзывчивости)
-    const dataToSave = {
-        tasks: state.tasks,
-        lang: state.lang,
-        theme: state.theme
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+    // 1. Обновляем время изменения
+    state.lastUpdated = Date.now();
 
-    // 2. Сохраняем в облако с задержкой (Debounce)
-    // Ждем 1 секунду после последнего изменения, прежде чем отправлять запрос
+    // 2. Сохраняем локально мгновенно
+    saveLocal();
+
+    // 3. Отправляем в облако с задержкой
     if (saveTimeout) clearTimeout(saveTimeout);
 
     saveTimeout = setTimeout(async () => {
         try {
-            await fetch('/.netlify/functions/api', {
+            const response = await fetch('/.netlify/functions/api', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dataToSave)
+                body: JSON.stringify({
+                    tasks: state.tasks,
+                    lang: state.lang,
+                    theme: state.theme,
+                    lastUpdated: state.lastUpdated // Отправляем метку времени
+                })
             });
-            console.log("Saved to cloud");
+
+            if (!response.ok) {
+                console.error("Server save failed:", await response.text());
+            } else {
+                console.log("Saved to cloud successfully");
+            }
         } catch (error) {
             console.error("Cloud save failed:", error);
         }
-    }, 1000); // 1000 мс = 1 секунда
+    }, 1000);
 }
 function changeWeek(offset) {
     const currentView = new Date(state.viewWeekStart);
