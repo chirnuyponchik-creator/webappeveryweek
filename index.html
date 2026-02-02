@@ -43,6 +43,19 @@
                     <span data-i18n="appTitle">Моя Неделя</span>
                 </button>
 
+                <div class="menu-section-label" data-i18n="lblTheme">Theme / Тема</div>
+                <div class="theme-switcher-sidebar">
+                    <div class="theme-glider"></div>
+                    <button class="theme-tab active" data-theme="light">
+                        <i class="ph-bold ph-sun"></i>
+                        <span data-i18n="themeLight">Light</span>
+                    </button>
+                    <button class="theme-tab" data-theme="dark">
+                        <i class="ph-bold ph-moon"></i>
+                        <span data-i18n="themeDark">Dark</span>
+                    </button>
+                </div>
+
                 <div class="menu-section-label">Language / Мова / Язык</div>
                 <div class="lang-switcher-sidebar">
                     <div class="lang-glider"></div>
@@ -102,7 +115,7 @@
             <form id="task-form">
                 <div class="form-group">
                     <label><i class="ph-bold ph-text-t"></i> <span data-i18n="lblTitle">Название</span></label>
-                    <input type="text" id="t-title" required spellcheck="true">
+                    <input type="text" id="t-title" required spellcheck="true" autocomplete="off">
                 </div>
 
                 <div class="form-group">

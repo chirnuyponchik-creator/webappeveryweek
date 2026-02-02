@@ -1,11 +1,61 @@
 :root {
-    --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #eef2f8 100%);
-    --primary-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    --primary-solid: #6366f1;
+    /* --- Light Theme Variables --- */
+    --bg-body: #f0f4f8;
+    --bg-card: #ffffff;
+    --bg-input: #f1f5f9;
+    --bg-sidebar: #ffffff;
+    --bg-hover: #e0e7ff;
+
     --text-main: #1e293b;
     --text-secondary: #64748b;
+    --text-inverse: #ffffff;
+
+    --primary-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    --primary-solid: #6366f1;
     --danger: #ef4444;
     --success: #10b981;
+
+    --border-subtle: rgba(0, 0, 0, 0.05);
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.03);
+    --shadow-float: 0 8px 20px rgba(0, 0, 0, 0.1);
+
+    --blob-opacity: 0.6;
+    --blob-color-1: #c7d2fe;
+    --blob-color-2: #e9d5ff;
+    --blob-color-3: #bfdbfe;
+
+    --glass-bg: rgba(255, 255, 255, 0.6);
+}
+
+[data-theme="dark"] {
+    /* --- Dark Theme Variables --- */
+    --bg-body: #0f172a;
+    /* Очень темный синий */
+    --bg-card: #1e293b;
+    /* Темно-серый для карточек */
+    --bg-input: #334155;
+    /* Серый для полей ввода */
+    --bg-sidebar: #1e293b;
+    --bg-hover: #312e81;
+    /* Темно-фиолетовый при наведении */
+
+    --text-main: #f1f5f9;
+    /* Почти белый текст */
+    --text-secondary: #94a3b8;
+    /* Светло-серый текст */
+    --text-inverse: #ffffff;
+
+    --border-subtle: rgba(255, 255, 255, 0.1);
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.2);
+    --shadow-float: 0 8px 20px rgba(0, 0, 0, 0.4);
+
+    /* Темные блобы (пузыри) */
+    --blob-opacity: 0.3;
+    --blob-color-1: #4338ca;
+    --blob-color-2: #6b21a8;
+    --blob-color-3: #1e40af;
+
+    --glass-bg: rgba(30, 41, 59, 0.7);
 }
 
 * {
@@ -18,9 +68,10 @@
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     color: var(--text-main);
+    background: var(--bg-body);
     height: 100vh;
-    background: #f0f4f8;
     overflow: hidden;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 /* Background */
@@ -32,14 +83,17 @@ body {
     height: 100%;
     z-index: -1;
     overflow: hidden;
+    pointer-events: none;
+    /* ВАЖНО: чтобы не перекрывать клики */
 }
 
 .blob {
     position: absolute;
     border-radius: 50%;
     filter: blur(60px);
-    opacity: 0.6;
+    opacity: var(--blob-opacity);
     animation: blob-float 10s infinite alternate;
+    transition: background 0.5s ease;
 }
 
 .blob-1 {
@@ -47,7 +101,7 @@ body {
     left: -10%;
     width: 300px;
     height: 300px;
-    background: #c7d2fe;
+    background: var(--blob-color-1);
 }
 
 .blob-2 {
@@ -55,7 +109,7 @@ body {
     right: -10%;
     width: 250px;
     height: 250px;
-    background: #e9d5ff;
+    background: var(--blob-color-2);
     animation-delay: 2s;
 }
 
@@ -64,7 +118,7 @@ body {
     left: 30%;
     width: 200px;
     height: 200px;
-    background: #bfdbfe;
+    background: var(--blob-color-3);
     animation-delay: 4s;
     opacity: 0.4;
 }
@@ -88,15 +142,14 @@ body {
 /* --- SIDEBAR --- */
 .sidebar {
     width: 280px;
-    background: #ffffff;
+    background: var(--bg-sidebar);
     display: flex;
     flex-direction: column;
     padding: 24px;
-    border-right: 1px solid rgba(0, 0, 0, 0.05);
-    z-index: 2000;
-    flex-shrink: 0;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border-right: 1px solid var(--border-subtle);
     z-index: 3000;
+    flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
 }
 
 .user-profile {
@@ -105,7 +158,7 @@ body {
     gap: 12px;
     margin-bottom: 30px;
     padding: 12px;
-    background: #f8fafc;
+    background: var(--bg-input);
     border-radius: 16px;
 }
 
@@ -129,6 +182,7 @@ body {
 .user-name {
     font-weight: 800;
     font-size: 15px;
+    color: var(--text-main);
 }
 
 .user-plan {
@@ -160,7 +214,7 @@ body {
 
 .menu-item:hover,
 .menu-item.active {
-    background: #e0e7ff;
+    background: var(--bg-hover);
     color: var(--primary-solid);
 }
 
@@ -168,37 +222,57 @@ body {
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    color: #94a3b8;
+    color: var(--text-secondary);
     margin-top: 20px;
     margin-bottom: 8px;
     padding-left: 10px;
+    opacity: 0.7;
 }
 
-.lang-switcher-sidebar {
+/* Lang & Theme Switchers */
+.lang-switcher-sidebar,
+.theme-switcher-sidebar {
     position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    display: flex;
+    /* Changed from grid to flex */
     width: 100%;
     height: 40px;
     padding: 4px;
-    background: #f1f5f9;
+    background: var(--bg-input);
     border-radius: 12px;
+    margin-bottom: 10px;
 }
 
-.lang-glider {
+.theme-switcher-sidebar {
+    display: flex;
+}
+
+.lang-glider,
+.theme-glider {
     position: absolute;
     top: 4px;
     left: 4px;
-    width: calc((100% - 8px) / 3);
     height: calc(100% - 8px);
-    background: white;
+    background: var(--bg-card);
     border-radius: 9px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     z-index: 1;
     transition: transform 0.3s;
 }
 
-.lang-tab {
+/* Lang glider width is 1/3 */
+.lang-glider {
+    width: calc((100% - 8px) / 3);
+}
+
+/* Theme glider width is 1/2 */
+.theme-glider {
+    width: calc((100% - 8px) / 2);
+}
+
+.lang-tab,
+.theme-tab {
+    flex: 1;
     position: relative;
     z-index: 2;
     background: transparent;
@@ -207,21 +281,26 @@ body {
     font-weight: 700;
     color: var(--text-secondary);
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: color 0.3s;
 }
 
-.lang-tab.active {
+.lang-tab.active,
+.theme-tab.active {
     color: var(--primary-solid);
-}
-
-.sidebar-footer {
-    margin-top: auto;
 }
 
 .btn-new-task {
     width: 100%;
     padding: 16px;
     background: var(--text-main);
-    color: white;
+    /* In dark mode this becomes white text on dark bg? No, wait. */
+    background: var(--primary-solid);
+    /* Let's use primary color for better contrast in both modes */
+    color: #ffffff;
     border: none;
     border-radius: 16px;
     font-size: 15px;
@@ -231,10 +310,9 @@ body {
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-float);
 }
 
-/* Overlay */
 .sidebar-overlay {
     position: fixed;
     inset: 0;
@@ -269,15 +347,11 @@ body {
     min-height: 40px;
 }
 
-.top-bar-right {
-    width: 40px;
-}
-
 .mobile-menu-btn {
     display: none;
     width: 40px;
     height: 40px;
-    background: white;
+    background: var(--bg-card);
     border: none;
     border-radius: 12px;
     font-size: 24px;
@@ -287,14 +361,14 @@ body {
     cursor: pointer;
     position: relative;
     z-index: 2500;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-card);
     flex-shrink: 0;
 }
 
 .mobile-menu-btn .icon-menu,
 .mobile-menu-btn .icon-close {
     position: absolute;
-    transition: all 0.2s ease;
+    transition: 0.2s;
 }
 
 .mobile-menu-btn .icon-close {
@@ -316,10 +390,11 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    background: rgba(255, 255, 255, 0.6);
+    background: var(--glass-bg);
     padding: 6px 8px;
     border-radius: 20px;
     backdrop-filter: blur(8px);
+    border: 1px solid var(--border-subtle);
 }
 
 .date-display {
@@ -328,6 +403,7 @@ body {
     padding: 0 10px;
     min-width: 140px;
     text-align: center;
+    color: var(--text-main);
 }
 
 .nav-arrow {
@@ -335,11 +411,13 @@ body {
     height: 32px;
     border-radius: 50%;
     border: none;
-    background: white;
+    background: var(--bg-card);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: var(--text-main);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .nav-arrow.disabled {
@@ -364,19 +442,24 @@ body {
 
 .nav-btn {
     padding: 12px 24px;
-    background: white;
+    background: var(--bg-card);
     border: 1px solid transparent;
     border-radius: 16px;
     font-size: 14px;
     font-weight: 700;
     color: var(--text-secondary);
     min-width: 60px;
+    transition: all 0.2s;
+    cursor: pointer;
 }
 
 .nav-btn.active {
     background: var(--text-main);
-    color: white;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    /* This might be issue in dark mode if text-main is white */
+    background: var(--primary-solid);
+    color: #ffffff;
+    box-shadow: var(--shadow-float);
+    border-color: transparent;
 }
 
 .nav-btn.today:not(.active) {
@@ -410,18 +493,20 @@ body {
     margin-bottom: 20px;
     display: flex;
     justify-content: space-between;
+    color: var(--text-main);
 }
 
 .task-card {
-    background: white;
+    background: var(--bg-card);
     border-radius: 16px;
     padding: 18px;
     margin-bottom: 12px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+    box-shadow: var(--shadow-card);
     display: flex;
     align-items: flex-start;
     position: relative;
     overflow: hidden;
+    color: var(--text-main);
 }
 
 .permanent-stripe {
@@ -433,7 +518,6 @@ body {
     background: var(--primary-grad);
 }
 
-/* --- Task Card Checkbox (ИСПРАВЛЕНО) --- */
 .checkbox-wrapper {
     width: 24px;
     height: 24px;
@@ -444,7 +528,6 @@ body {
     flex-shrink: 0;
 }
 
-/* Скрываем стандартный инпут */
 .checkbox-wrapper input {
     opacity: 0;
     width: 0;
@@ -452,49 +535,41 @@ body {
     position: absolute;
 }
 
-/* Кастомный квадрат */
 .checkmark {
     position: absolute;
     top: 0;
     left: 0;
     width: 24px;
     height: 24px;
-    border: 2px solid #cbd5e1;
+    border: 2px solid var(--text-secondary);
+    /* dynamic border color */
     border-radius: 8px;
-    transition: all 0.2s ease-in-out;
-    background: white;
+    transition: all 0.2s;
+    background: var(--bg-card);
 }
 
-/* Стиль при наведении */
 .checkbox-wrapper:hover input:not(:checked)~.checkmark {
     border-color: var(--primary-solid);
 }
 
-/* Стиль активного (зеленого) квадрата */
 .checkbox-wrapper input:checked~.checkmark {
     background: var(--success);
     border-color: var(--success);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-    /* Мягкая тень */
 }
 
-/* Сама белая птичка (галочка) */
 .checkmark:after {
     content: "";
     position: absolute;
     display: none;
-    /* Скрыта по умолчанию */
     left: 8px;
     top: 4px;
     width: 6px;
     height: 11px;
     border: solid white;
     border-width: 0 2.5px 2.5px 0;
-    /* Сделали чуть жирнее */
     transform: rotate(45deg);
 }
 
-/* Показываем птичку при выборе */
 .checkbox-wrapper input:checked~.checkmark:after {
     display: block;
 }
@@ -513,6 +588,7 @@ body {
     font-size: 16px;
     font-weight: 600;
     line-height: 1.3;
+    color: var(--text-main);
 }
 
 .task-desc {
@@ -520,7 +596,6 @@ body {
     color: var(--text-secondary);
     margin-top: 8px;
     line-height: 1.5;
-    opacity: 0.95;
     font-weight: 500;
 }
 
@@ -539,7 +614,7 @@ body {
         left: 0;
         height: 100%;
         transform: translateX(-100%);
-        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.3);
     }
 
     .sidebar.active {
@@ -574,11 +649,9 @@ body {
         margin-right: -16px;
         padding-left: 16px;
         padding-right: 16px;
-        margin-bottom: 20px;
     }
 
     .day-nav-track {
-        display: flex;
         gap: 8px;
     }
 
@@ -592,7 +665,8 @@ body {
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(30, 41, 59, 0.4);
+    background: rgba(15, 23, 42, 0.6);
+    /* Slightly darker overlay */
     backdrop-filter: blur(4px);
     z-index: 3000;
     display: flex;
@@ -609,13 +683,16 @@ body {
 }
 
 .modal-card {
-    background: white;
+    background: var(--bg-card);
     width: 90%;
     max-width: 460px;
     border-radius: 24px;
     padding: 24px;
     max-height: 85vh;
     overflow-y: auto;
+    color: var(--text-main);
+    box-shadow: var(--shadow-float);
+    border: 1px solid var(--border-subtle);
 }
 
 .modal-header {
@@ -624,8 +701,12 @@ body {
     margin-bottom: 20px;
 }
 
+.modal-header h2 {
+    color: var(--text-main);
+}
+
 .close-btn {
-    background: #f1f5f9;
+    background: var(--bg-input);
     border: none;
     width: 32px;
     height: 32px;
@@ -635,43 +716,64 @@ body {
     align-items: center;
     font-size: 18px;
     cursor: pointer;
-    transition: transform 0.2s;
-}
-
-.close-btn:active {
-    transform: scale(0.9);
+    color: var(--text-main);
 }
 
 input[type="text"],
 textarea {
     width: 100%;
     padding: 14px;
-    background: #f1f5f9;
+    background: var(--bg-input);
+    color: var(--text-main);
     border: 2px solid transparent;
     border-radius: 12px;
     font-size: 15px;
     margin-bottom: 20px;
+    transition: background 0.2s, border-color 0.2s;
 }
 
-input:focus {
-    background: white;
+input:focus,
+textarea:focus {
+    background: var(--bg-card);
     border-color: var(--primary-solid);
     outline: none;
 }
 
 .modal-actions {
     display: flex;
-    gap: 10px;
+    gap: 12px;
+    margin-top: 30px;
+    width: 100%;
+}
+
+.btn-delete {
+    flex: 1;
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    padding: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
 }
 
 .btn-primary {
-    flex: 1;
+    flex: 2;
     padding: 16px;
-    background: var(--text-main);
+    background: var(--primary-solid);
     color: white;
     border: none;
-    border-radius: 14px;
+    border-radius: 16px;
+    font-size: 16px;
     font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
 }
 
 .day-selector {
@@ -683,49 +785,51 @@ input:focus {
 .day-option {
     flex: 1;
     padding: 10px 0;
-    background: #f1f5f9;
+    background: var(--bg-input);
+    color: var(--text-secondary);
     text-align: center;
     border-radius: 10px;
     font-size: 12px;
     font-weight: 700;
+    cursor: pointer;
+    /* WAS MISSING, fixed clickable feel */
+    transition: all 0.2s;
 }
 
 .day-option.selected {
-    background: var(--text-main);
+    background: var(--primary-solid);
     color: white;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
 }
 
 .hidden {
     display: none !important;
 }
 
-/* --- TOGGLE SWITCH (КРАСИВЫЙ) --- */
+/* Toggle Switch */
 .row-group {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: #f8fafc;
+    background: var(--bg-input);
     padding: 16px;
     border-radius: 16px;
     margin-bottom: 20px;
-    border: 1px solid #f1f5f9;
-}
-
-.row-text {
-    flex: 1;
+    border: 1px solid var(--border-subtle);
 }
 
 .switch-label {
-    display: block;
-    font-weight: 700;
-    font-size: 14px;
     color: var(--text-main);
-    margin-bottom: 2px;
-}
-
-.hint {
-    font-size: 12px;
-    color: var(--text-secondary);
 }
 
 .switch {
@@ -748,9 +852,10 @@ input:focus {
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: #cbd5e1;
+    background-color: var(--text-secondary);
     transition: .4s;
     border-radius: 34px;
+    opacity: 0.5;
 }
 
 .slider:before {
@@ -763,22 +868,22 @@ input:focus {
     background-color: white;
     transition: .4s;
     border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input:checked+.slider {
     background-color: var(--primary-solid);
+    opacity: 1;
 }
 
 input:checked+.slider:before {
     transform: translateX(22px);
 }
 
-/* --- PICKER (ИСПРАВЛЕННЫЙ) --- */
+/* Picker */
 .ios-picker-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.4);
+    background: rgba(0, 0, 0, 0.5);
     z-index: 99999;
     display: flex;
     align-items: flex-end;
@@ -794,14 +899,13 @@ input:checked+.slider:before {
 }
 
 .ios-picker-container {
-    background: white;
+    background: var(--bg-card);
     width: 100%;
     max-width: 500px;
     border-radius: 24px 24px 0 0;
     transform: translateY(100%);
-    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    transition: transform 0.3s;
     padding-bottom: 30px;
-    /* Safe area iphone */
     display: flex;
     flex-direction: column;
 }
@@ -815,12 +919,13 @@ input:checked+.slider:before {
     justify-content: space-between;
     align-items: center;
     padding: 16px 24px;
-    border-bottom: 1px solid #f1f5f9;
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .picker-header span {
     font-weight: 700;
     font-size: 16px;
+    color: var(--text-main);
 }
 
 .picker-done {
@@ -832,15 +937,12 @@ input:checked+.slider:before {
     cursor: pointer;
 }
 
-/* Барабан */
 .picker-body {
     position: relative;
     height: 220px;
-    /* Высота видимой области */
     display: flex;
     justify-content: center;
     overflow: hidden;
-    /* Маска затухания */
     mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
     -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
 }
@@ -852,8 +954,7 @@ input:checked+.slider:before {
     right: 16px;
     height: 44px;
     margin-top: -22px;
-    /* Половина высоты элемента */
-    background: rgba(99, 102, 241, 0.1);
+    background: var(--bg-input);
     border-radius: 12px;
     pointer-events: none;
     z-index: 0;
@@ -863,27 +964,17 @@ input:checked+.slider:before {
     flex: 1;
     height: 100%;
     overflow-y: hidden;
-    /* Скрываем нативный скролл, управляем через JS */
     text-align: center;
     z-index: 1;
     cursor: grab;
-    /* Курсор руки */
-    user-select: none;
-    /* Чтобы текст не выделялся при тяге */
-}
-
-.picker-column:active {
-    cursor: grabbing;
 }
 
 .picker-item {
     height: 44px;
     line-height: 44px;
     font-size: 22px;
-    color: #94a3b8;
+    color: var(--text-secondary);
     font-weight: 500;
-    transition: transform 0.2s, color 0.2s;
-    transform-origin: center;
 }
 
 .picker-item.selected {
@@ -899,75 +990,54 @@ input:checked+.slider:before {
     margin: 0 10px;
     color: var(--text-main);
     padding-bottom: 6px;
-    /* Коррекция визуального центра */
 }
 
-/* --- КНОПКИ В МОДАЛКЕ (БАЛАНС) --- */
-.modal-actions {
-    display: flex;
-    gap: 12px;
-    /* Расстояние между кнопками */
-    margin-top: 30px;
-    width: 100%;
+/* View Content */
+.view-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
-/* Кнопка УДАЛИТЬ */
-.btn-delete {
-    /* РАЗМЕРЫ: Занимает 1 часть пространства */
-    flex: 1;
-    width: auto;
-    /* Убираем фиксированную ширину */
-
-    /* ВНЕШНИЙ ВИД: Строгий, но заметный красный */
-    background: var(--danger);
-    color: white;
-    border: none;
-    border-radius: 16px;
-    /* Такое же скругление, как у Save */
-    padding: 16px;
-
-    /* ТЕКСТ */
-    font-size: 15px;
-    font-weight: 700;
-    white-space: nowrap;
-    /* Текст в одну строку */
-
-    /* ЦЕНТРИРОВАНИЕ */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    /* Отступ если есть иконка */
-
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
-    /* Аккуратная тень */
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-/* Эффекты нажатия */
-.btn-delete:active {
-    transform: scale(0.97);
-    box-shadow: none;
-}
-
-/* Кнопка СОХРАНИТЬ */
-.btn-primary {
-    /* РАЗМЕРЫ: Занимает 2 части пространства (шире, чем удалить) */
-    flex: 2;
-
-    padding: 16px;
-    background: var(--text-main);
-    color: white;
-    border: none;
-    border-radius: 16px;
+.view-value {
+    color: var(--text-main);
     font-size: 16px;
-    font-weight: 700;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-    cursor: pointer;
-    transition: transform 0.2s;
+    font-weight: 600;
+    margin-bottom: 16px;
 }
 
-.btn-primary:active {
-    transform: scale(0.97);
+.title-lg {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.accent-text {
+    color: var(--primary-solid);
+}
+
+.view-desc-box {
+    background: var(--bg-input);
+    padding: 12px;
+    border-radius: 12px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-main);
+}
+
+.btn-edit-mode {
+    width: 100%;
+    padding: 16px;
+    background: var(--bg-input);
+    color: var(--text-main);
+    border: none;
+    border-radius: 16px;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
 }

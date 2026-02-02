@@ -27,7 +27,10 @@ const TRANSLATIONS = {
         daysFull: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
         dateFormat: 'en-US',
         placeholderTitle: "E.g.: Morning workout",
-        placeholderDesc: "Add details..."
+        placeholderDesc: "Add details...",
+        lblTheme: "Theme",
+        themeLight: "Light",
+        themeDark: "Dark"
     },
     uk: {
         appTitle: "Мій Тиждень",
@@ -53,7 +56,10 @@ const TRANSLATIONS = {
         daysFull: ['Понеділок', 'Вівторок', 'Середа', 'Четвер', 'П’ятниця', 'Субота', 'Неділя'],
         dateFormat: 'uk-UA',
         placeholderTitle: "Напр.: Тренування",
-        placeholderDesc: "Деталі..."
+        placeholderDesc: "Деталі...",
+        lblTheme: "Тема",
+        themeLight: "Світла",
+        themeDark: "Темна"
     },
     ru: {
         appTitle: "Моя Неделя",
@@ -79,16 +85,21 @@ const TRANSLATIONS = {
         daysFull: ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'],
         dateFormat: 'ru-RU',
         placeholderTitle: "Напр: Сделать отчёт",
-        placeholderDesc: "Детали задачи..."
+        placeholderDesc: "Детали задачи...",
+        lblTheme: "Тема",
+        themeLight: "Светлая",
+        themeDark: "Темная"
     }
 };
 
-const STORAGE_KEY = 'weekly_planner_data_v2';
+// СМЕНИЛ ВЕРСИЮ НА v5, ЧТОБЫ ОЧИСТИТЬ СТАРЫЕ ГЛЮЧНЫЕ ДАННЫЕ
+const STORAGE_KEY = 'weekly_planner_data_v5';
 const LIMIT_START_DATE = new Date('2026-02-02T00:00:00').getTime();
 
 let state = {
     viewWeekStart: null,
     lang: 'ru',
+    theme: 'light',
     tasks: []
 };
 
@@ -110,6 +121,9 @@ const btnDelete = document.getElementById('btn-delete');
 const langTabs = document.querySelectorAll('.lang-tab');
 const langGlider = document.querySelector('.lang-glider');
 
+const themeTabs = document.querySelectorAll('.theme-tab');
+const themeGlider = document.querySelector('.theme-glider');
+
 const inputTitle = document.getElementById('t-title');
 const inputDesc = document.getElementById('t-desc');
 
@@ -123,10 +137,36 @@ const vDesc = document.getElementById('v-desc');
 const btnPrevWeek = document.getElementById('prev-week');
 const btnNextWeek = document.getElementById('next-week');
 
-// Sidebar & Mobile Menu Elements
 const mobileMenuBtn = document.getElementById('mobile-menu-btn');
 const sidebar = document.getElementById('sidebar');
 const sidebarOverlay = document.getElementById('sidebar-overlay');
+
+// ==========================================
+// DATE HELPERS (FIXED)
+// ==========================================
+
+// Возвращает дату в формате "YYYY-MM-DD" строго по местному времени
+function getLocalISODate(d) {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+// Превращает строку "YYYY-MM-DD" в объект Date (00:00 местное время)
+function parseLocalYYYYMMDD(str) {
+    const [y, m, d] = str.split('-').map(Number);
+    return new Date(y, m - 1, d);
+}
+
+function getMonday(d) {
+    d = new Date(d);
+    let day = d.getDay();
+    let diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    let monday = new Date(d.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+    return monday;
+}
 
 // ==========================================
 // INIT
@@ -137,29 +177,29 @@ document.addEventListener('DOMContentLoaded', initApp);
 function initApp() {
     loadData();
 
-    // Check limits
     if (!state.viewWeekStart) {
         let nowMonday = getMonday(new Date()).getTime();
         state.viewWeekStart = nowMonday < LIMIT_START_DATE ? LIMIT_START_DATE : nowMonday;
     }
 
     checkAndGenerateCurrentWeek();
+
     updateLangTabsUI();
+    updateThemeUI();
     applyLanguage();
+
     renderHeader();
     renderNav();
     renderSchedule();
     updateSliderPosition();
     initSwipe();
 
-    // Listeners
     if (btnPrevWeek) btnPrevWeek.addEventListener('click', () => changeWeek(-1));
     if (btnNextWeek) btnNextWeek.addEventListener('click', () => changeWeek(1));
     if (fabBtn) fabBtn.addEventListener('click', openNewTaskModal);
     if (closeFormBtn) closeFormBtn.addEventListener('click', () => modalForm.classList.add('hidden'));
     if (closeViewBtn) closeViewBtn.addEventListener('click', () => modalView.classList.add('hidden'));
 
-    // Mobile Menu Listeners
     if (mobileMenuBtn) {
         mobileMenuBtn.addEventListener('click', toggleSidebar);
     }
@@ -167,7 +207,38 @@ function initApp() {
         sidebarOverlay.addEventListener('click', closeSidebar);
     }
 
+    themeTabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const newTheme = tab.dataset.theme;
+            setTheme(newTheme);
+        });
+    });
+
     initCustomTimePicker();
+}
+
+// ==========================================
+// THEME LOGIC
+// ==========================================
+
+function setTheme(themeName) {
+    state.theme = themeName;
+    document.documentElement.setAttribute('data-theme', themeName);
+    updateThemeUI();
+    saveData();
+}
+
+function updateThemeUI() {
+    document.documentElement.setAttribute('data-theme', state.theme);
+    const tabsOrder = ['light', 'dark'];
+    const activeIndex = tabsOrder.indexOf(state.theme);
+    if (themeGlider && activeIndex !== -1) {
+        themeGlider.style.transform = `translateX(${activeIndex * 100}%)`;
+    }
+    themeTabs.forEach(tab => {
+        if (tab.dataset.theme === state.theme) tab.classList.add('active');
+        else tab.classList.remove('active');
+    });
 }
 
 // ==========================================
@@ -187,13 +258,13 @@ function openSidebar() {
     sidebar.classList.add('active');
     sidebarOverlay.classList.remove('hidden');
     setTimeout(() => sidebarOverlay.classList.add('active'), 10);
-    mobileMenuBtn.classList.add('active'); // Turn hamburger into X
+    mobileMenuBtn.classList.add('active');
 }
 
 function closeSidebar() {
     sidebar.classList.remove('active');
     sidebarOverlay.classList.remove('active');
-    mobileMenuBtn.classList.remove('active'); // Turn X back to hamburger
+    mobileMenuBtn.classList.remove('active');
     setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
 }
 
@@ -207,8 +278,12 @@ function loadData() {
         const loaded = JSON.parse(raw);
         state.tasks = loaded.tasks || [];
         state.lang = loaded.lang || 'ru';
+        state.theme = loaded.theme || 'light';
     } else {
         state.viewWeekStart = getMonday(new Date()).getTime();
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            state.theme = 'dark';
+        }
         saveData();
     }
 }
@@ -216,17 +291,9 @@ function loadData() {
 function saveData() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
         tasks: state.tasks,
-        lang: state.lang
+        lang: state.lang,
+        theme: state.theme
     }));
-}
-
-function getMonday(d) {
-    d = new Date(d);
-    let day = d.getDay();
-    let diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    let monday = new Date(d.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
-    return monday;
 }
 
 function changeWeek(offset) {
@@ -256,24 +323,33 @@ function updateNavArrows() {
     else btnNextWeek.classList.remove('disabled');
 }
 
+// ИСПРАВЛЕННАЯ ГЕНЕРАЦИЯ ЗАДАЧ
 function checkAndGenerateCurrentWeek() {
     const realMonday = getMonday(new Date()).getTime();
+
+    // Проверяем, есть ли задачи на текущей неделе, используя правильный парсинг
     const hasTasksForRealWeek = state.tasks.some(t => {
-        const tDate = new Date(t.date).getTime();
+        if (!t.date) return false;
+        const tDate = parseLocalYYYYMMDD(t.date).getTime();
         return tDate >= realMonday && tDate < realMonday + (7 * 24 * 60 * 60 * 1000);
     });
 
     if (!hasTasksForRealWeek && state.tasks.length > 0) {
-        const sortedTasks = [...state.tasks].sort((a, b) => new Date(b.date) - new Date(a.date));
+        // Сортируем чтобы найти последние
+        const sortedTasks = [...state.tasks].sort((a, b) => parseLocalYYYYMMDD(b.date) - parseLocalYYYYMMDD(a.date));
         if (sortedTasks.length === 0) return;
 
-        const lastTaskDate = new Date(sortedTasks[0].date);
+        const lastTaskDate = parseLocalYYYYMMDD(sortedTasks[0].date);
         const lastKnownMonday = getMonday(lastTaskDate).getTime();
 
+        // Если последние задачи были в прошлом (не на этой неделе)
         if (lastKnownMonday < realMonday) {
+            // Находим все постоянные задачи с той последней недели
             const tasksToCopy = state.tasks.filter(t => {
-                const tDate = getMonday(new Date(t.date)).getTime();
-                return t.isPermanent && tDate === lastKnownMonday;
+                if (!t.isPermanent) return false;
+                const tDateObj = parseLocalYYYYMMDD(t.date);
+                const tMonday = getMonday(tDateObj).getTime();
+                return tMonday === lastKnownMonday;
             });
 
             const newTasks = [];
@@ -281,14 +357,21 @@ function checkAndGenerateCurrentWeek() {
                 let newTask = { ...task };
                 newTask.id = Date.now().toString() + Math.random().toString(36).substr(2, 5);
                 newTask.isCompleted = false;
+
+                // Рассчитываем новую дату
                 let dateObj = new Date(realMonday);
                 dateObj.setDate(dateObj.getDate() + newTask.dayIndex);
-                newTask.date = dateObj.toISOString().split('T')[0];
+
+                // Сохраняем в локальном формате, чтобы не прыгало
+                newTask.date = getLocalISODate(dateObj);
+
                 newTasks.push(newTask);
             });
 
-            state.tasks = [...state.tasks, ...newTasks];
-            saveData();
+            if (newTasks.length > 0) {
+                state.tasks = [...state.tasks, ...newTasks];
+                saveData();
+            }
         }
     }
 }
@@ -306,7 +389,6 @@ function openNewTaskModal() {
     taskForm.reset();
     renderModalDaySelector();
 
-    // Auto-select current viewed day
     const dayToSelect = (currentDayIndex >= 0 && currentDayIndex <= 6) ? currentDayIndex : 0;
     const container = document.getElementById('day-selector');
     if (container) {
@@ -314,10 +396,7 @@ function openNewTaskModal() {
         if (btn) btn.classList.add('selected');
     }
     dayInput.value = dayToSelect;
-
-    // Close sidebar on mobile if open
     closeSidebar();
-
     modalForm.classList.remove('hidden');
 }
 
@@ -418,7 +497,8 @@ function renderSchedule() {
         let dateObj = new Date(viewMonday);
         dateObj.setDate(viewMonday.getDate() + i);
         let dateStr = dateObj.toLocaleDateString(locale, { day: 'numeric', month: 'long' });
-        let dateIso = dateObj.toISOString().split('T')[0];
+        // Используем нашу функцию для получения строки сравнения
+        let dateIso = getLocalISODate(dateObj);
 
         let dayTasks = state.tasks.filter(t => t.date === dateIso);
         dayTasks.sort((a, b) => a.time.localeCompare(b.time));
@@ -433,7 +513,7 @@ function renderSchedule() {
         `;
         if (dayTasks.length === 0) {
             html += `
-                <div style="display:flex; flex-direction:column; align-items:center; margin-top:60px; opacity:0.4;">
+                <div style="display:flex; flex-direction:column; align-items:center; margin-top:60px; opacity:0.4; color: var(--text-secondary);">
                     <i class="ph-duotone ph-coffee" style="font-size:48px; margin-bottom:10px;"></i>
                     <span style="font-size:14px; font-weight:600;">${TRANSLATIONS[state.lang].noTasks}</span>
                 </div>
@@ -473,7 +553,8 @@ function saveNewTasks(title, dayIndices, time, isPermanent, desc) {
         state.tasks.push({
             id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
             title, dayIndex, time, isPermanent, description: desc,
-            date: taskDate.toISOString().split('T')[0],
+            // ИСПРАВЛЕНО: Сохраняем дату локально
+            date: getLocalISODate(taskDate),
             isCompleted: false
         });
     });
@@ -485,11 +566,18 @@ function updateExistingTask(id, title, dayIndex, time, isPermanent, desc) {
     const idx = state.tasks.findIndex(t => t.id === id);
     if (idx !== -1) {
         const oldTask = state.tasks[idx];
-        const taskDateObj = new Date(oldTask.date);
+        const taskDateObj = parseLocalYYYYMMDD(oldTask.date);
         const currentMonday = getMonday(taskDateObj);
+
         let newDate = new Date(currentMonday);
         newDate.setDate(currentMonday.getDate() + dayIndex);
-        state.tasks[idx] = { ...state.tasks[idx], title, dayIndex, time, isPermanent, description: desc, date: newDate.toISOString().split('T')[0] };
+
+        state.tasks[idx] = {
+            ...state.tasks[idx],
+            title, dayIndex, time, isPermanent, description: desc,
+            // ИСПРАВЛЕНО: Сохраняем дату локально
+            date: getLocalISODate(newDate)
+        };
         saveData();
         renderSchedule();
     }
@@ -593,7 +681,7 @@ if (btnGoToEdit) btnGoToEdit.addEventListener('click', () => {
 });
 
 // ==========================================
-// TIME PICKER (DRAG & DROP + MOUSE WHEEL)
+// TIME PICKER
 // ==========================================
 
 const timeInputTrigger = document.getElementById('t-time');
@@ -601,18 +689,12 @@ const pickerOverlay = document.getElementById('ios-time-picker');
 const pickerDoneBtn = document.getElementById('picker-done-btn');
 const colHours = document.getElementById('col-hours');
 const colMinutes = document.getElementById('col-minutes');
-
-// Параметры
 const ITEM_HEIGHT = 44;
-const VISIBLE_ROWS = 5; // Сколько строк влезает (примерно 220px / 44)
-// Отступ, чтобы первый элемент был по центру: (Высота контейнера / 2) - (Высота элемента / 2)
 const PADDING_OFFSET = (220 / 2) - (ITEM_HEIGHT / 2);
 
 function initCustomTimePicker() {
-    // 1. Создаем элементы с отступами
     const createItems = (cont, count) => {
         cont.innerHTML = '';
-        // Верхний паддинг
         const padTop = document.createElement('div');
         padTop.style.height = `${PADDING_OFFSET}px`;
         cont.appendChild(padTop);
@@ -624,7 +706,6 @@ function initCustomTimePicker() {
             cont.appendChild(d);
         }
 
-        // Нижний паддинг
         const padBot = document.createElement('div');
         padBot.style.height = `${PADDING_OFFSET}px`;
         cont.appendChild(padBot);
@@ -633,39 +714,31 @@ function initCustomTimePicker() {
     createItems(colHours, 24);
     createItems(colMinutes, 60);
 
-    // 2. Инициализация логики прокрутки для каждой колонки
     setupColumnLogic(colHours);
     setupColumnLogic(colMinutes);
 
-    // 3. Открытие
     timeInputTrigger.addEventListener('click', () => {
         pickerOverlay.classList.remove('hidden');
         setTimeout(() => pickerOverlay.classList.add('active'), 10);
 
-        // Парсим текущее время
         let [h, m] = timeInputTrigger.value.split(':').map(Number);
         if (isNaN(h)) h = 12;
         if (isNaN(m)) m = 0;
 
-        // Мгновенно скроллим к нужному месту (без анимации при открытии)
         scrollToIndex(colHours, h, false);
         scrollToIndex(colMinutes, m, false);
     });
 
-    // 4. Кнопка OK
     pickerDoneBtn.addEventListener('click', () => {
         const h = getCurrentIndex(colHours);
         const m = getCurrentIndex(colMinutes);
-
         const validH = Math.min(Math.max(0, h), 23);
         const validM = Math.min(Math.max(0, m), 59);
-
         timeInputTrigger.value = `${validH.toString().padStart(2, '0')}:${validM.toString().padStart(2, '0')}`;
         pickerOverlay.classList.remove('active');
         setTimeout(() => pickerOverlay.classList.add('hidden'), 300);
     });
 
-    // Закрытие по клику на фон
     pickerOverlay.addEventListener('click', (e) => {
         if (e.target === pickerOverlay) {
             pickerOverlay.classList.remove('active');
@@ -674,7 +747,6 @@ function initCustomTimePicker() {
     });
 }
 
-// --- ЛОГИКА КОЛОНКИ (МЫШЬ + ТАЧ + КОЛЕСО) ---
 function setupColumnLogic(element) {
     let isDragging = false;
     let startY = 0;
@@ -684,21 +756,14 @@ function setupColumnLogic(element) {
     let lastTime = 0;
     let animationFrame;
 
-    // Helper: получить текущий индекс
-    const getMaxScroll = () => element.scrollHeight - element.clientHeight;
-
-    // MOUSE WHEEL
     element.addEventListener('wheel', (e) => {
         e.preventDefault();
         element.scrollTop += e.deltaY;
         updateHighlight(element);
-
-        // Debounce snap
         clearTimeout(element.snapTimeout);
         element.snapTimeout = setTimeout(() => snapToGrid(element), 100);
     });
 
-    // START (Mouse & Touch)
     const startDrag = (y) => {
         isDragging = true;
         startY = y;
@@ -706,19 +771,17 @@ function setupColumnLogic(element) {
         lastY = y;
         lastTime = Date.now();
         velocity = 0;
-        cancelAnimationFrame(animationFrame); // Остановить инерцию
+        cancelAnimationFrame(animationFrame);
     };
 
     element.addEventListener('mousedown', (e) => startDrag(e.clientY));
     element.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientY), { passive: false });
 
-    // MOVE
     const moveDrag = (y) => {
         if (!isDragging) return;
         const delta = startY - y;
         element.scrollTop = currentScroll + delta;
 
-        // Расчет скорости для инерции
         const now = Date.now();
         const dt = now - lastTime;
         if (dt > 0) {
@@ -736,7 +799,6 @@ function setupColumnLogic(element) {
         if (isDragging) { e.preventDefault(); moveDrag(e.touches[0].clientY); }
     }, { passive: false });
 
-    // END
     const endDrag = () => {
         if (!isDragging) return;
         isDragging = false;
@@ -746,9 +808,8 @@ function setupColumnLogic(element) {
     window.addEventListener('mouseup', endDrag);
     window.addEventListener('touchend', endDrag);
 
-    // ИНЕРЦИЯ
     function inertia() {
-        const friction = 0.95; // Трение
+        const friction = 0.95;
         if (Math.abs(velocity) > 0.1) {
             element.scrollTop += velocity * 10;
             velocity *= friction;
@@ -771,7 +832,6 @@ function scrollToIndex(element, index, smooth = true) {
         top: targetScroll,
         behavior: smooth ? 'smooth' : 'auto'
     });
-    // Принудительно обновляем класс selected
     setTimeout(() => updateHighlight(element), smooth ? 200 : 0);
 }
 
