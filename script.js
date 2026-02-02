@@ -370,7 +370,6 @@ function saveData() {
         }
     }, 1000); // 1000 мс = 1 секунда
 }
-
 function changeWeek(offset) {
     const currentView = new Date(state.viewWeekStart);
     currentView.setDate(currentView.getDate() + (offset * 7));
