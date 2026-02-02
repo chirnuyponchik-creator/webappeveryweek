@@ -297,7 +297,7 @@ async function loadData() {
 
     // 2. Грузим из облака
     try {
-        const response = await fetch('/.netlify/functions/api');
+        const response = await fetch('/.netlify/functions/api?t=' + Date.now());
         if (response.ok) {
             const cloudData = await response.json();
 
@@ -327,7 +327,7 @@ function setupDefaultState() {
     if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
         state.theme = 'dark';
     }
-    state.lastUpdated = Date.now();
+    state.lastUpdated = 0;
     saveLocal();
 }
 
