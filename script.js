@@ -269,31 +269,106 @@ function closeSidebar() {
 }
 
 // ==========================================
-// DATA & DATE LOGIC
+// DATA & DATE LOGIC (UPDATED FOR SYNC)
 // ==========================================
 
-function loadData() {
+let saveTimeout = null; // Переменная для таймера сохранения
+
+async function loadData() {
+    // 1. Сначала грузим из LocalStorage (чтобы интерфейс появился мгновенно)
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
-        const loaded = JSON.parse(raw);
-        state.tasks = loaded.tasks || [];
-        state.lang = loaded.lang || 'ru';
-        state.theme = loaded.theme || 'light';
-    } else {
-        state.viewWeekStart = getMonday(new Date()).getTime();
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            state.theme = 'dark';
+        try {
+            const loaded = JSON.parse(raw);
+            state.tasks = loaded.tasks || [];
+            state.lang = loaded.lang || 'ru';
+            state.theme = loaded.theme || 'light';
+        } catch (e) {
+            console.error("Local data parse error", e);
         }
-        saveData();
+    } else {
+        setupDefaultState();
+    }
+
+    // Отрисовываем то, что есть локально
+    applyLanguage();
+    updateThemeUI();
+    renderHeader();
+    renderSchedule();
+
+    // 2. Теперь тихо пытаемся подтянуть данные из облака
+    try {
+        const response = await fetch('/.netlify/functions/api');
+        if (response.ok) {
+            const cloudData = await response.json();
+
+            // Если в облаке есть данные (не null и есть задачи или настройки)
+            if (cloudData && (cloudData.tasks || cloudData.lang)) {
+                console.log("Cloud data loaded:", cloudData);
+
+                // Обновляем стейт
+                state.tasks = cloudData.tasks || [];
+                state.lang = cloudData.lang || state.lang;
+                state.theme = cloudData.theme || state.theme;
+
+                // Сохраняем актуальную версию в локалку
+                localStorage.setItem(STORAGE_KEY, JSON.stringify({
+                    tasks: state.tasks,
+                    lang: state.lang,
+                    theme: state.theme
+                }));
+
+                // Перерисовываем интерфейс с новыми данными
+                applyLanguage();
+                updateThemeUI(); // Обновит тему, если она сменилась на другом устройстве
+                updateLangTabsUI();
+                renderSchedule();
+            }
+        }
+    } catch (error) {
+        console.error("Sync error:", error);
+        // Если ошибка сети — ничего страшного, пользователь работает с локальной версией
     }
 }
 
-function saveData() {
+function setupDefaultState() {
+    state.viewWeekStart = getMonday(new Date()).getTime();
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        state.theme = 'dark';
+    }
+    // Сохраняем дефолт сразу локально
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
         tasks: state.tasks,
         lang: state.lang,
         theme: state.theme
     }));
+}
+
+function saveData() {
+    // 1. Сохраняем в LocalStorage мгновенно (для отзывчивости)
+    const dataToSave = {
+        tasks: state.tasks,
+        lang: state.lang,
+        theme: state.theme
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+
+    // 2. Сохраняем в облако с задержкой (Debounce)
+    // Ждем 1 секунду после последнего изменения, прежде чем отправлять запрос
+    if (saveTimeout) clearTimeout(saveTimeout);
+
+    saveTimeout = setTimeout(async () => {
+        try {
+            await fetch('/.netlify/functions/api', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dataToSave)
+            });
+            console.log("Saved to cloud");
+        } catch (error) {
+            console.error("Cloud save failed:", error);
+        }
+    }, 1000); // 1000 мс = 1 секунда
 }
 
 function changeWeek(offset) {

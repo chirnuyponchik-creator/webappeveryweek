@@ -1,13 +1,12 @@
 // netlify/functions/api.js
 const postgres = require('postgres');
 
-// Подключение к базе данных через переменную окружения
+// Подключение к БД
 const sql = postgres(process.env.DATABASE_URL, {
     ssl: 'require',
 });
 
 exports.handler = async (event, context) => {
-    // Разрешаем CORS, чтобы сайт мог обращаться к функции
     const headers = {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type',
@@ -19,12 +18,15 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // --- ПОЛУЧЕНИЕ ДАННЫХ (GET) ---
+        // --- ПОЛУЧЕНИЕ (GET) ---
         if (event.httpMethod === 'GET') {
+            // Используем жесткий ключ 'user_data'. 
+            // Внимание: это значит, что все посетители сайта делят ОДНУ базу.
             const result = await sql`SELECT data FROM app_state WHERE key = 'user_data' LIMIT 1`;
 
             if (result.length === 0) {
-                return { statusCode: 200, headers, body: JSON.stringify({}) };
+                // Если базы нет, возвращаем null, чтобы фронтенд использовал локальные данные
+                return { statusCode: 200, headers, body: JSON.stringify(null) };
             }
 
             return {
@@ -34,16 +36,16 @@ exports.handler = async (event, context) => {
             };
         }
 
-        // --- СОХРАНЕНИЕ ДАННЫХ (POST) ---
+        // --- СОХРАНЕНИЕ (POST) ---
         if (event.httpMethod === 'POST') {
             const newData = JSON.parse(event.body);
 
-            // Обновляем JSON в базе данных
+            // sql.json(newData) помогает драйверу понять, что это JSONB
             await sql`
                 INSERT INTO app_state (key, data)
-                VALUES ('user_data', ${newData})
+                VALUES ('user_data', ${sql.json(newData)})
                 ON CONFLICT (key) 
-                DO UPDATE SET data = ${newData}
+                DO UPDATE SET data = ${sql.json(newData)}
             `;
 
             return { statusCode: 200, headers, body: JSON.stringify({ success: true }) };
@@ -56,7 +58,7 @@ exports.handler = async (event, context) => {
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: 'Database connection failed' }),
+            body: JSON.stringify({ error: error.message }),
         };
     }
 };
