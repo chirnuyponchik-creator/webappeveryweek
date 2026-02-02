@@ -100,7 +100,7 @@ let viewingTaskId = null;
 const scheduleTrack = document.getElementById('schedule-track');
 const dayNavTrack = document.getElementById('day-nav-track');
 const modalForm = document.getElementById('modal-overlay');
-const fabBtn = document.getElementById('fab-add'); // Now inside sidebar
+const fabBtn = document.getElementById('fab-add');
 const closeFormBtn = document.getElementById('modal-close');
 const taskForm = document.getElementById('task-form');
 const dayInput = document.getElementById('t-day-index');
@@ -122,6 +122,11 @@ const vDesc = document.getElementById('v-desc');
 
 const btnPrevWeek = document.getElementById('prev-week');
 const btnNextWeek = document.getElementById('next-week');
+
+// Sidebar & Mobile Menu Elements
+const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
 
 // ==========================================
 // INIT
@@ -154,8 +159,47 @@ function initApp() {
     if (closeFormBtn) closeFormBtn.addEventListener('click', () => modalForm.classList.add('hidden'));
     if (closeViewBtn) closeViewBtn.addEventListener('click', () => modalView.classList.add('hidden'));
 
+    // Mobile Menu Listeners
+    if (mobileMenuBtn) {
+        mobileMenuBtn.addEventListener('click', toggleSidebar);
+    }
+    if (sidebarOverlay) {
+        sidebarOverlay.addEventListener('click', closeSidebar);
+    }
+
     initCustomTimePicker();
 }
+
+// ==========================================
+// SIDEBAR LOGIC
+// ==========================================
+
+function toggleSidebar() {
+    const isActive = sidebar.classList.contains('active');
+    if (isActive) {
+        closeSidebar();
+    } else {
+        openSidebar();
+    }
+}
+
+function openSidebar() {
+    sidebar.classList.add('active');
+    sidebarOverlay.classList.remove('hidden');
+    setTimeout(() => sidebarOverlay.classList.add('active'), 10);
+    mobileMenuBtn.classList.add('active'); // Turn hamburger into X
+}
+
+function closeSidebar() {
+    sidebar.classList.remove('active');
+    sidebarOverlay.classList.remove('active');
+    mobileMenuBtn.classList.remove('active'); // Turn X back to hamburger
+    setTimeout(() => sidebarOverlay.classList.add('hidden'), 300);
+}
+
+// ==========================================
+// DATA & DATE LOGIC
+// ==========================================
 
 function loadData() {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -175,10 +219,6 @@ function saveData() {
         lang: state.lang
     }));
 }
-
-// ==========================================
-// DATE LOGIC
-// ==========================================
 
 function getMonday(d) {
     d = new Date(d);
@@ -254,7 +294,7 @@ function checkAndGenerateCurrentWeek() {
 }
 
 // ==========================================
-// FORM
+// MODAL FORMS
 // ==========================================
 
 function openNewTaskModal() {
@@ -274,6 +314,9 @@ function openNewTaskModal() {
         if (btn) btn.classList.add('selected');
     }
     dayInput.value = dayToSelect;
+
+    // Close sidebar on mobile if open
+    closeSidebar();
 
     modalForm.classList.remove('hidden');
 }
@@ -327,7 +370,7 @@ taskForm.addEventListener('submit', (e) => {
 if (btnDelete) btnDelete.addEventListener('click', () => { if (editingTaskId) deleteTask(editingTaskId); });
 
 // ==========================================
-// RENDER
+// RENDER & HELPERS
 // ==========================================
 
 function renderHeader() {
@@ -422,10 +465,6 @@ function renderSchedule() {
     }
 }
 
-// ==========================================
-// CRUD
-// ==========================================
-
 function saveNewTasks(title, dayIndices, time, isPermanent, desc) {
     const viewMonday = new Date(state.viewWeekStart);
     dayIndices.forEach(dayIndex => {
@@ -469,10 +508,6 @@ function toggleTaskStatus(id) {
     const task = state.tasks.find(t => t.id === id);
     if (task) { task.isCompleted = !task.isCompleted; saveData(); renderSchedule(); }
 }
-
-// ==========================================
-// HELPERS
-// ==========================================
 
 function applyLanguage() {
     const t = TRANSLATIONS[state.lang];
@@ -538,8 +573,6 @@ window.openViewModal = function (id) {
 
 if (btnGoToEdit) btnGoToEdit.addEventListener('click', () => {
     modalView.classList.add('hidden');
-    // Open edit logic needs task info, handled by openNewTaskModal pre-fill logic if adapted,
-    // but here we just simplify:
     const task = state.tasks.find(t => t.id === viewingTaskId);
     if (task) {
         editingTaskId = viewingTaskId;
@@ -551,7 +584,6 @@ if (btnGoToEdit) btnGoToEdit.addEventListener('click', () => {
         document.getElementById('t-desc').value = task.description || '';
         renderModalDaySelector();
         dayInput.value = task.dayIndex;
-        // Fix selector UI
         const container = document.getElementById('day-selector');
         const btn = container.querySelector(`.day-option[data-day="${task.dayIndex}"]`);
         if (btn) btn.classList.add('selected');
@@ -560,39 +592,198 @@ if (btnGoToEdit) btnGoToEdit.addEventListener('click', () => {
     }
 });
 
-// TIME PICKER
+// ==========================================
+// TIME PICKER (DRAG & DROP + MOUSE WHEEL)
+// ==========================================
+
 const timeInputTrigger = document.getElementById('t-time');
 const pickerOverlay = document.getElementById('ios-time-picker');
 const pickerDoneBtn = document.getElementById('picker-done-btn');
 const colHours = document.getElementById('col-hours');
 const colMinutes = document.getElementById('col-minutes');
 
+// Параметры
+const ITEM_HEIGHT = 44;
+const VISIBLE_ROWS = 5; // Сколько строк влезает (примерно 220px / 44)
+// Отступ, чтобы первый элемент был по центру: (Высота контейнера / 2) - (Высота элемента / 2)
+const PADDING_OFFSET = (220 / 2) - (ITEM_HEIGHT / 2);
+
 function initCustomTimePicker() {
+    // 1. Создаем элементы с отступами
     const createItems = (cont, count) => {
-        cont.innerHTML = '<div class="spacer" style="height:70px"></div>';
+        cont.innerHTML = '';
+        // Верхний паддинг
+        const padTop = document.createElement('div');
+        padTop.style.height = `${PADDING_OFFSET}px`;
+        cont.appendChild(padTop);
+
         for (let i = 0; i < count; i++) {
             const d = document.createElement('div');
             d.className = 'picker-item';
             d.textContent = i.toString().padStart(2, '0');
             cont.appendChild(d);
         }
-        cont.innerHTML += '<div class="spacer" style="height:70px"></div>';
+
+        // Нижний паддинг
+        const padBot = document.createElement('div');
+        padBot.style.height = `${PADDING_OFFSET}px`;
+        cont.appendChild(padBot);
     };
+
     createItems(colHours, 24);
     createItems(colMinutes, 60);
 
+    // 2. Инициализация логики прокрутки для каждой колонки
+    setupColumnLogic(colHours);
+    setupColumnLogic(colMinutes);
+
+    // 3. Открытие
     timeInputTrigger.addEventListener('click', () => {
         pickerOverlay.classList.remove('hidden');
         setTimeout(() => pickerOverlay.classList.add('active'), 10);
+
+        // Парсим текущее время
+        let [h, m] = timeInputTrigger.value.split(':').map(Number);
+        if (isNaN(h)) h = 12;
+        if (isNaN(m)) m = 0;
+
+        // Мгновенно скроллим к нужному месту (без анимации при открытии)
+        scrollToIndex(colHours, h, false);
+        scrollToIndex(colMinutes, m, false);
     });
 
+    // 4. Кнопка OK
     pickerDoneBtn.addEventListener('click', () => {
-        const h = Math.round(colHours.scrollTop / 40);
-        const m = Math.round(colMinutes.scrollTop / 40);
+        const h = getCurrentIndex(colHours);
+        const m = getCurrentIndex(colMinutes);
+
         const validH = Math.min(Math.max(0, h), 23);
         const validM = Math.min(Math.max(0, m), 59);
+
         timeInputTrigger.value = `${validH.toString().padStart(2, '0')}:${validM.toString().padStart(2, '0')}`;
         pickerOverlay.classList.remove('active');
         setTimeout(() => pickerOverlay.classList.add('hidden'), 300);
+    });
+
+    // Закрытие по клику на фон
+    pickerOverlay.addEventListener('click', (e) => {
+        if (e.target === pickerOverlay) {
+            pickerOverlay.classList.remove('active');
+            setTimeout(() => pickerOverlay.classList.add('hidden'), 300);
+        }
+    });
+}
+
+// --- ЛОГИКА КОЛОНКИ (МЫШЬ + ТАЧ + КОЛЕСО) ---
+function setupColumnLogic(element) {
+    let isDragging = false;
+    let startY = 0;
+    let currentScroll = 0;
+    let velocity = 0;
+    let lastY = 0;
+    let lastTime = 0;
+    let animationFrame;
+
+    // Helper: получить текущий индекс
+    const getMaxScroll = () => element.scrollHeight - element.clientHeight;
+
+    // MOUSE WHEEL
+    element.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        element.scrollTop += e.deltaY;
+        updateHighlight(element);
+
+        // Debounce snap
+        clearTimeout(element.snapTimeout);
+        element.snapTimeout = setTimeout(() => snapToGrid(element), 100);
+    });
+
+    // START (Mouse & Touch)
+    const startDrag = (y) => {
+        isDragging = true;
+        startY = y;
+        currentScroll = element.scrollTop;
+        lastY = y;
+        lastTime = Date.now();
+        velocity = 0;
+        cancelAnimationFrame(animationFrame); // Остановить инерцию
+    };
+
+    element.addEventListener('mousedown', (e) => startDrag(e.clientY));
+    element.addEventListener('touchstart', (e) => startDrag(e.touches[0].clientY), { passive: false });
+
+    // MOVE
+    const moveDrag = (y) => {
+        if (!isDragging) return;
+        const delta = startY - y;
+        element.scrollTop = currentScroll + delta;
+
+        // Расчет скорости для инерции
+        const now = Date.now();
+        const dt = now - lastTime;
+        if (dt > 0) {
+            velocity = (lastY - y) / dt;
+            lastY = y;
+            lastTime = now;
+        }
+        updateHighlight(element);
+    };
+
+    window.addEventListener('mousemove', (e) => {
+        if (isDragging) { e.preventDefault(); moveDrag(e.clientY); }
+    });
+    window.addEventListener('touchmove', (e) => {
+        if (isDragging) { e.preventDefault(); moveDrag(e.touches[0].clientY); }
+    }, { passive: false });
+
+    // END
+    const endDrag = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        inertia();
+    };
+
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchend', endDrag);
+
+    // ИНЕРЦИЯ
+    function inertia() {
+        const friction = 0.95; // Трение
+        if (Math.abs(velocity) > 0.1) {
+            element.scrollTop += velocity * 10;
+            velocity *= friction;
+            updateHighlight(element);
+            animationFrame = requestAnimationFrame(inertia);
+        } else {
+            snapToGrid(element);
+        }
+    }
+}
+
+function snapToGrid(element) {
+    const index = Math.round(element.scrollTop / ITEM_HEIGHT);
+    scrollToIndex(element, index, true);
+}
+
+function scrollToIndex(element, index, smooth = true) {
+    const targetScroll = index * ITEM_HEIGHT;
+    element.scrollTo({
+        top: targetScroll,
+        behavior: smooth ? 'smooth' : 'auto'
+    });
+    // Принудительно обновляем класс selected
+    setTimeout(() => updateHighlight(element), smooth ? 200 : 0);
+}
+
+function getCurrentIndex(element) {
+    return Math.round(element.scrollTop / ITEM_HEIGHT);
+}
+
+function updateHighlight(element) {
+    const index = getCurrentIndex(element);
+    const items = element.querySelectorAll('.picker-item');
+    items.forEach((item, i) => {
+        if (i === index) item.classList.add('selected');
+        else item.classList.remove('selected');
     });
 }

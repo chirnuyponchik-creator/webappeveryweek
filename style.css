@@ -1,19 +1,11 @@
 :root {
     --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #eef2f8 100%);
-    --card-bg: rgba(255, 255, 255, 0.85);
-    --card-border: rgba(255, 255, 255, 0.6);
-    --glass-shadow: 0 8px 32px rgba(31, 38, 135, 0.07);
-    --blur-amt: 12px;
     --primary-grad: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
     --primary-solid: #6366f1;
-    --primary-light: #e0e7ff;
     --text-main: #1e293b;
     --text-secondary: #64748b;
     --danger: #ef4444;
     --success: #10b981;
-    --radius-lg: 24px;
-    --radius-md: 16px;
-    --radius-sm: 12px;
 }
 
 * {
@@ -26,13 +18,12 @@
 body {
     font-family: 'Plus Jakarta Sans', sans-serif;
     color: var(--text-main);
-    line-height: 1.5;
-    overflow: hidden;
-    /* Скроллится только контент */
     height: 100vh;
     background: #f0f4f8;
+    overflow: hidden;
 }
 
+/* Background */
 .background-blobs {
     position: fixed;
     top: 0;
@@ -88,7 +79,6 @@ body {
     }
 }
 
-/* --- MAIN LAYOUT --- */
 #app {
     display: flex;
     width: 100%;
@@ -103,16 +93,16 @@ body {
     flex-direction: column;
     padding: 24px;
     border-right: 1px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.02);
-    z-index: 10;
+    z-index: 2000;
     flex-shrink: 0;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .user-profile {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 40px;
+    margin-bottom: 30px;
     padding: 12px;
     background: #f8fafc;
     border-radius: 16px;
@@ -138,7 +128,6 @@ body {
 .user-name {
     font-weight: 800;
     font-size: 15px;
-    color: var(--text-main);
 }
 
 .user-plan {
@@ -166,21 +155,61 @@ body {
     color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.2s;
-    text-align: left;
 }
 
-.menu-item:hover {
-    background: #f1f5f9;
-    color: var(--text-main);
-}
-
+.menu-item:hover,
 .menu-item.active {
     background: #e0e7ff;
     color: var(--primary-solid);
 }
 
-.menu-item i {
-    font-size: 20px;
+.menu-section-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #94a3b8;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    padding-left: 10px;
+}
+
+.lang-switcher-sidebar {
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    width: 100%;
+    height: 40px;
+    padding: 4px;
+    background: #f1f5f9;
+    border-radius: 12px;
+}
+
+.lang-glider {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: calc((100% - 8px) / 3);
+    height: calc(100% - 8px);
+    background: white;
+    border-radius: 9px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    z-index: 1;
+    transition: transform 0.3s;
+}
+
+.lang-tab {
+    position: relative;
+    z-index: 2;
+    background: transparent;
+    border: none;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.lang-tab.active {
+    color: var(--primary-solid);
 }
 
 .sidebar-footer {
@@ -201,15 +230,27 @@ body {
     justify-content: center;
     gap: 8px;
     cursor: pointer;
-    transition: transform 0.2s;
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
-.btn-new-task:active {
-    transform: scale(0.98);
+/* Overlay */
+.sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 1500;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
 }
 
-/* --- MAIN CONTENT AREA --- */
+.sidebar-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* --- MAIN CONTENT --- */
 .main-content {
     flex: 1;
     display: flex;
@@ -223,21 +264,52 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+    min-height: 40px;
 }
 
-.top-bar-left {
-    width: 130px;
-    /* Spacer to balance layout */
+.top-bar-right {
+    width: 40px;
 }
 
 .mobile-menu-btn {
     display: none;
+    width: 40px;
+    height: 40px;
+    background: white;
+    border: none;
+    border-radius: 12px;
     font-size: 24px;
+    color: var(--text-main);
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    position: relative;
+    z-index: 2100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-/* Date Navigator */
+.mobile-menu-btn .icon-menu,
+.mobile-menu-btn .icon-close {
+    position: absolute;
+    transition: all 0.2s ease;
+}
+
+.mobile-menu-btn .icon-close {
+    opacity: 0;
+    transform: scale(0.5) rotate(-90deg);
+}
+
+.mobile-menu-btn.active .icon-menu {
+    opacity: 0;
+    transform: scale(0.5) rotate(90deg);
+}
+
+.mobile-menu-btn.active .icon-close {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+}
+
 .date-navigator {
     display: flex;
     align-items: center;
@@ -246,19 +318,14 @@ body {
     padding: 6px 8px;
     border-radius: 20px;
     backdrop-filter: blur(8px);
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
 }
 
 .date-display {
-    display: flex;
-    align-items: center;
-    gap: 6px;
     font-size: 14px;
     font-weight: 700;
-    color: var(--text-main);
     padding: 0 10px;
     min-width: 140px;
-    justify-content: center;
+    text-align: center;
 }
 
 .nav-arrow {
@@ -267,18 +334,10 @@ body {
     border-radius: 50%;
     border: none;
     background: white;
+    cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    color: var(--text-main);
-    transition: all 0.2s;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-.nav-arrow:hover {
-    background: var(--text-main);
-    color: white;
 }
 
 .nav-arrow.disabled {
@@ -286,49 +345,6 @@ body {
     pointer-events: none;
 }
 
-/* Lang Switcher */
-.lang-switcher {
-    position: relative;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    width: 130px;
-    height: 36px;
-    padding: 4px;
-    background: rgba(255, 255, 255, 0.6);
-    border-radius: 18px;
-    backdrop-filter: blur(8px);
-}
-
-.lang-glider {
-    position: absolute;
-    top: 4px;
-    left: 4px;
-    width: calc((100% - 8px) / 3);
-    height: calc(100% - 8px);
-    background: white;
-    border-radius: 14px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    z-index: 1;
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.lang-tab {
-    position: relative;
-    z-index: 2;
-    background: transparent;
-    border: none;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: color 0.2s;
-}
-
-.lang-tab.active {
-    color: var(--primary-solid);
-}
-
-/* --- DAY NAV --- */
 .day-nav {
     margin-bottom: 20px;
     overflow-x: auto;
@@ -352,29 +368,25 @@ body {
     font-size: 14px;
     font-weight: 700;
     color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+    min-width: 60px;
 }
 
 .nav-btn.active {
     background: var(--text-main);
     color: white;
-    transform: translateY(-2px);
     box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 .nav-btn.today:not(.active) {
-    border-color: var(--primary-solid);
     color: var(--primary-solid);
+    border-color: var(--primary-solid);
 }
 
-/* --- SCHEDULE & TASKS --- */
 .schedule-viewport {
     flex: 1;
     overflow: hidden;
-    position: relative;
     width: 100%;
+    position: relative;
 }
 
 .schedule-track {
@@ -388,17 +400,14 @@ body {
     min-width: 100%;
     padding-bottom: 100px;
     overflow-y: auto;
-    padding-right: 4px;
 }
 
 .day-header-inline {
     font-size: 20px;
     font-weight: 800;
     margin-bottom: 20px;
-    color: var(--text-main);
     display: flex;
     justify-content: space-between;
-    align-items: baseline;
 }
 
 .task-card {
@@ -407,17 +416,10 @@ body {
     padding: 18px;
     margin-bottom: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(0, 0, 0, 0.02);
     display: flex;
     align-items: flex-start;
-    transition: transform 0.1s, opacity 0.2s;
     position: relative;
     overflow: hidden;
-}
-
-.task-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
 .permanent-stripe {
@@ -429,15 +431,18 @@ body {
     background: var(--primary-grad);
 }
 
+/* --- Task Card Checkbox (ИСПРАВЛЕНО) --- */
 .checkbox-wrapper {
-    position: relative;
-    cursor: pointer;
     width: 24px;
     height: 24px;
     margin-right: 16px;
     margin-top: 2px;
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
 }
 
+/* Скрываем стандартный инпут */
 .checkbox-wrapper input {
     opacity: 0;
     width: 0;
@@ -445,6 +450,7 @@ body {
     position: absolute;
 }
 
+/* Кастомный квадрат */
 .checkmark {
     position: absolute;
     top: 0;
@@ -453,54 +459,67 @@ body {
     height: 24px;
     border: 2px solid #cbd5e1;
     border-radius: 8px;
-    transition: all 0.3s;
+    transition: all 0.2s ease-in-out;
+    background: white;
 }
 
+/* Стиль при наведении */
+.checkbox-wrapper:hover input:not(:checked)~.checkmark {
+    border-color: var(--primary-solid);
+}
+
+/* Стиль активного (зеленого) квадрата */
 .checkbox-wrapper input:checked~.checkmark {
     background: var(--success);
     border-color: var(--success);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    /* Мягкая тень */
 }
 
+/* Сама белая птичка (галочка) */
 .checkmark:after {
     content: "";
     position: absolute;
     display: none;
+    /* Скрыта по умолчанию */
     left: 8px;
     top: 4px;
-    width: 5px;
-    height: 10px;
+    width: 6px;
+    height: 11px;
     border: solid white;
-    border-width: 0 2px 2px 0;
+    border-width: 0 2.5px 2.5px 0;
+    /* Сделали чуть жирнее */
     transform: rotate(45deg);
 }
 
+/* Показываем птичку при выборе */
 .checkbox-wrapper input:checked~.checkmark:after {
     display: block;
 }
 
 .task-content {
     flex: 1;
-    cursor: pointer;
 }
 
 .task-time {
     font-size: 13px;
     font-weight: 700;
     color: var(--primary-solid);
-    margin-bottom: 4px;
 }
 
 .task-title {
     font-size: 16px;
     font-weight: 600;
-    color: var(--text-main);
     line-height: 1.3;
 }
 
 .task-desc {
-    font-size: 13px;
+    font-size: 14px;
     color: var(--text-secondary);
-    margin-top: 6px;
+    margin-top: 8px;
+    line-height: 1.5;
+    opacity: 0.95;
+    font-weight: 500;
 }
 
 .task-card.completed {
@@ -509,7 +528,44 @@ body {
 
 .task-card.completed .task-title {
     text-decoration: line-through;
-    text-decoration-color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        height: 100%;
+        transform: translateX(-100%);
+        box-shadow: 10px 0 30px rgba(0, 0, 0, 0.1);
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+
+    .mobile-menu-btn {
+        display: flex;
+    }
+
+    .main-content {
+        padding: 16px;
+    }
+
+    .top-bar {
+        gap: 12px;
+    }
+
+    .date-navigator {
+        flex: 1;
+        justify-content: space-between;
+    }
+
+    .date-display {
+        min-width: auto;
+        font-size: 13px;
+        padding: 0 4px;
+    }
 }
 
 /* --- MODALS --- */
@@ -518,45 +574,34 @@ body {
     inset: 0;
     background: rgba(30, 41, 59, 0.4);
     backdrop-filter: blur(4px);
-    z-index: 1000;
-    transition: opacity 0.3s;
+    z-index: 3000;
     display: flex;
-    align-items: center;
     justify-content: center;
-}
-
-.modal-overlay.hidden {
+    align-items: center;
     opacity: 0;
     pointer-events: none;
+    transition: 0.3s;
+}
+
+.modal-overlay:not(.hidden) {
+    opacity: 1;
+    pointer-events: auto;
 }
 
 .modal-card {
-    background: #fff;
+    background: white;
     width: 90%;
     max-width: 460px;
     border-radius: 24px;
     padding: 24px;
-    transform: translateY(20px);
-    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
     max-height: 85vh;
     overflow-y: auto;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
-}
-
-.modal-overlay:not(.hidden) .modal-card {
-    transform: translateY(0);
 }
 
 .modal-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-}
-
-.modal-header h2 {
-    font-size: 22px;
-    font-weight: 800;
+    margin-bottom: 20px;
 }
 
 .close-btn {
@@ -565,45 +610,24 @@ body {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    color: var(--text-secondary);
     display: flex;
-    align-items: center;
     justify-content: center;
-    font-size: 18px;
-    cursor: pointer;
-}
-
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
-    display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text-secondary);
-    margin-bottom: 8px;
-    text-transform: uppercase;
+    font-size: 18px;
 }
 
 input[type="text"],
 textarea {
     width: 100%;
     padding: 14px;
-    border: 2px solid transparent;
     background: #f1f5f9;
+    border: 2px solid transparent;
     border-radius: 12px;
     font-size: 15px;
-    font-weight: 600;
-    font-family: inherit;
-    color: var(--text-main);
-    transition: all 0.2s;
+    margin-bottom: 20px;
 }
 
-input[type="text"]:focus,
-textarea:focus {
+input:focus {
     background: white;
     border-color: var(--primary-solid);
     outline: none;
@@ -611,8 +635,7 @@ textarea:focus {
 
 .modal-actions {
     display: flex;
-    gap: 12px;
-    margin-top: 30px;
+    gap: 10px;
 }
 
 .btn-primary {
@@ -622,45 +645,23 @@ textarea:focus {
     color: white;
     border: none;
     border-radius: 14px;
-    font-size: 16px;
     font-weight: 700;
-    cursor: pointer;
 }
 
-.btn-delete {
-    width: 50px;
-    background: #fee2e2;
-    color: var(--danger);
-    border: none;
-    border-radius: 14px;
-    font-size: 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.hidden {
-    display: none !important;
-}
-
-/* Day Selector in Modal */
 .day-selector {
     display: flex;
-    gap: 6px;
+    gap: 4px;
+    margin-bottom: 20px;
 }
 
 .day-option {
     flex: 1;
-    text-align: center;
     padding: 10px 0;
-    font-size: 13px;
-    font-weight: 700;
     background: #f1f5f9;
+    text-align: center;
     border-radius: 10px;
-    color: var(--text-secondary);
-    cursor: pointer;
-    transition: all 0.2s;
+    font-size: 12px;
+    font-weight: 700;
 }
 
 .day-option.selected {
@@ -668,20 +669,44 @@ textarea:focus {
     color: white;
 }
 
-/* Switch */
+.hidden {
+    display: none !important;
+}
+
+/* --- TOGGLE SWITCH (КРАСИВЫЙ) --- */
 .row-group {
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: #f8fafc;
-    padding: 12px;
-    border-radius: 12px;
+    padding: 16px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+    border: 1px solid #f1f5f9;
+}
+
+.row-text {
+    flex: 1;
+}
+
+.switch-label {
+    display: block;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.hint {
+    font-size: 12px;
+    color: var(--text-secondary);
 }
 
 .switch {
     position: relative;
-    width: 42px;
-    height: 24px;
+    display: inline-block;
+    width: 52px;
+    height: 30px;
 }
 
 .switch input {
@@ -692,48 +717,49 @@ textarea:focus {
 
 .slider {
     position: absolute;
-    inset: 0;
-    background: #cbd5e1;
-    transition: .3s;
-    border-radius: 34px;
     cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #cbd5e1;
+    transition: .4s;
+    border-radius: 34px;
 }
 
 .slider:before {
     position: absolute;
     content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background: white;
-    transition: .3s;
+    height: 22px;
+    width: 22px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: .4s;
     border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 input:checked+.slider {
-    background: var(--primary-solid);
+    background-color: var(--primary-solid);
 }
 
 input:checked+.slider:before {
-    transform: translateX(18px);
+    transform: translateX(22px);
 }
 
-/* --- PICKER --- */
+/* --- PICKER (ИСПРАВЛЕННЫЙ) --- */
 .ios-picker-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.3);
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
     z-index: 99999;
     display: flex;
     align-items: flex-end;
     justify-content: center;
     opacity: 0;
     pointer-events: none;
-    transition: opacity 0.3s;
+    transition: 0.3s;
 }
 
 .ios-picker-overlay.active {
@@ -744,11 +770,14 @@ input:checked+.slider:before {
 .ios-picker-container {
     background: white;
     width: 100%;
-    max-width: 400px;
+    max-width: 500px;
     border-radius: 24px 24px 0 0;
-    padding-bottom: 30px;
     transform: translateY(100%);
-    transition: transform 0.3s;
+    transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+    padding-bottom: 30px;
+    /* Safe area iphone */
+    display: flex;
+    flex-direction: column;
 }
 
 .ios-picker-overlay.active .ios-picker-container {
@@ -758,55 +787,77 @@ input:checked+.slider:before {
 .picker-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     padding: 16px 24px;
     border-bottom: 1px solid #f1f5f9;
 }
 
+.picker-header span {
+    font-weight: 700;
+    font-size: 16px;
+}
+
 .picker-done {
-    border: none;
     background: transparent;
+    border: none;
     color: var(--primary-solid);
     font-weight: 700;
     font-size: 16px;
     cursor: pointer;
 }
 
+/* Барабан */
 .picker-body {
-    height: 180px;
-    display: flex;
     position: relative;
+    height: 220px;
+    /* Высота видимой области */
+    display: flex;
+    justify-content: center;
     overflow: hidden;
+    /* Маска затухания */
+    mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, black 15%, black 85%, transparent);
 }
 
 .highlight-bar {
     position: absolute;
     top: 50%;
-    left: 0;
-    right: 0;
-    height: 40px;
-    margin-top: -20px;
-    background: rgba(0, 0, 0, 0.03);
+    left: 16px;
+    right: 16px;
+    height: 44px;
+    margin-top: -22px;
+    /* Половина высоты элемента */
+    background: rgba(99, 102, 241, 0.1);
+    border-radius: 12px;
     pointer-events: none;
+    z-index: 0;
 }
 
 .picker-column {
     flex: 1;
-    overflow-y: scroll;
+    height: 100%;
+    overflow-y: hidden;
+    /* Скрываем нативный скролл, управляем через JS */
     text-align: center;
-    scroll-behavior: smooth;
-    padding: 70px 0;
-    scrollbar-width: none;
+    z-index: 1;
+    cursor: grab;
+    /* Курсор руки */
+    user-select: none;
+    /* Чтобы текст не выделялся при тяге */
 }
 
-.picker-column::-webkit-scrollbar {
-    display: none;
+.picker-column:active {
+    cursor: grabbing;
 }
 
 .picker-item {
-    height: 40px;
-    line-height: 40px;
-    font-size: 20px;
+    height: 44px;
+    line-height: 44px;
+    font-size: 22px;
     color: #94a3b8;
+    font-weight: 500;
+    transition: transform 0.2s, color 0.2s;
+    transform-origin: center;
 }
 
 .picker-item.selected {
@@ -816,66 +867,81 @@ input:checked+.slider:before {
 }
 
 .picker-colon {
-    line-height: 180px;
+    line-height: 220px;
+    font-size: 24px;
     font-weight: 700;
+    margin: 0 10px;
+    color: var(--text-main);
+    padding-bottom: 6px;
+    /* Коррекция визуального центра */
 }
 
-/* --- RESPONSIVE MOBILE --- */
-@media (max-width: 768px) {
-    #app {
-        flex-direction: column;
-    }
+/* --- КНОПКИ В МОДАЛКЕ (БАЛАНС) --- */
+.modal-actions {
+    display: flex;
+    gap: 12px;
+    /* Расстояние между кнопками */
+    margin-top: 30px;
+    width: 100%;
+}
 
-    .sidebar {
-        display: none;
-    }
+/* Кнопка УДАЛИТЬ */
+.btn-delete {
+    /* РАЗМЕРЫ: Занимает 1 часть пространства */
+    flex: 1;
+    width: auto;
+    /* Убираем фиксированную ширину */
 
-    /* Hide sidebar on mobile for now, or make it a drawer */
-    .main-content {
-        padding: 16px;
-    }
+    /* ВНЕШНИЙ ВИД: Строгий, но заметный красный */
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    /* Такое же скругление, как у Save */
+    padding: 16px;
 
-    .top-bar {
-        margin-bottom: 20px;
-    }
+    /* ТЕКСТ */
+    font-size: 15px;
+    font-weight: 700;
+    white-space: nowrap;
+    /* Текст в одну строку */
 
-    .top-bar-left {
-        display: none;
-    }
+    /* ЦЕНТРИРОВАНИЕ */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    /* Отступ если есть иконка */
 
-    .date-navigator {
-        flex: 1;
-        justify-content: space-between;
-    }
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+    /* Аккуратная тень */
+    transition: transform 0.2s, box-shadow 0.2s;
+}
 
-    .nav-arrow {
-        background: rgba(255, 255, 255, 0.8);
-    }
+/* Эффекты нажатия */
+.btn-delete:active {
+    transform: scale(0.97);
+    box-shadow: none;
+}
 
-    .lang-switcher {
-        display: none;
-    }
+/* Кнопка СОХРАНИТЬ */
+.btn-primary {
+    /* РАЗМЕРЫ: Занимает 2 части пространства (шире, чем удалить) */
+    flex: 2;
 
-    /* Hide lang on mobile to save space, or move to settings */
+    padding: 16px;
+    background: var(--text-main);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    font-size: 16px;
+    font-weight: 700;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
 
-    /* Show FAB only on mobile since sidebar is hidden */
-    .btn-new-task {
-        position: fixed;
-        bottom: 24px;
-        right: 24px;
-        width: 56px;
-        height: 56px;
-        border-radius: 50%;
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-        padding: 0;
-        z-index: 100;
-    }
-
-    .btn-new-task span {
-        display: none;
-    }
-
-    .btn-new-task i {
-        font-size: 24px;
-    }
+.btn-primary:active {
+    transform: scale(0.97);
 }

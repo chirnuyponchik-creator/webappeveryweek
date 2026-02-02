@@ -22,7 +22,9 @@
     </div>
 
     <div id="app">
-        <aside class="sidebar">
+        <div id="sidebar-overlay" class="sidebar-overlay hidden"></div>
+
+        <aside id="sidebar" class="sidebar">
             <div class="sidebar-header">
                 <div class="user-profile">
                     <div class="user-avatar">
@@ -40,6 +42,14 @@
                     <i class="ph-bold ph-calendar"></i>
                     <span data-i18n="appTitle">Моя Неделя</span>
                 </button>
+
+                <div class="menu-section-label">Language / Мова / Язык</div>
+                <div class="lang-switcher-sidebar">
+                    <div class="lang-glider"></div>
+                    <button class="lang-tab" data-lang="en">EN</button>
+                    <button class="lang-tab" data-lang="uk">UA</button>
+                    <button class="lang-tab" data-lang="ru">RU</button>
+                </div>
             </nav>
 
             <div class="sidebar-footer">
@@ -53,7 +63,10 @@
         <main class="main-content">
             <header class="top-bar">
                 <div class="top-bar-left">
-                    <div class="mobile-menu-btn"><i class="ph-bold ph-list"></i></div>
+                    <button id="mobile-menu-btn" class="mobile-menu-btn">
+                        <i class="ph-bold ph-list icon-menu"></i>
+                        <i class="ph-bold ph-x icon-close"></i>
+                    </button>
                 </div>
 
                 <div class="date-navigator">
@@ -65,12 +78,7 @@
                     <button id="next-week" class="nav-arrow"><i class="ph-bold ph-caret-right"></i></button>
                 </div>
 
-                <div class="lang-switcher">
-                    <div class="lang-glider"></div>
-                    <button class="lang-tab" data-lang="en">EN</button>
-                    <button class="lang-tab" data-lang="uk">UA</button>
-                    <button class="lang-tab" data-lang="ru">RU</button>
-                </div>
+                <div class="top-bar-right"></div>
             </header>
 
             <nav class="day-nav">
@@ -125,9 +133,12 @@
                 </div>
 
                 <div class="modal-actions">
-                    <button type="button" id="btn-delete" class="btn-delete hidden" data-i18n="btnDelete"><i
-                            class="ph-bold ph-trash"></i></button>
-                    <button type="submit" class="btn-primary" data-i18n="btnSave">Сохранить</button>
+                    <button type="button" id="btn-delete" class="btn-delete hidden">
+                        <i class="ph-bold ph-trash"></i>
+                        <span data-i18n="btnDelete">Delete</span>
+                    </button>
+
+                    <button type="submit" class="btn-primary" data-i18n="btnSave">Save</button>
                 </div>
             </form>
         </div>
